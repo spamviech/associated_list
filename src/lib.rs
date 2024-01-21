@@ -121,7 +121,7 @@ impl<K, V> AssocList<K, V> {
     where
         K: PartialEq,
     {
-        for (index, (contained_key, contained_value)) in self.0.iter_mut().enumerate() {
+        for (index, (contained_key, _contained_value)) in self.0.iter_mut().enumerate() {
             if contained_key == &key {
                 return Entry::Occupied(OccupiedEntry {
                     vec: &mut self.0,
@@ -135,40 +135,65 @@ impl<K, V> AssocList<K, V> {
         })
     }
 
+    /// Get a reference to the value associated with the `key`.
+    #[must_use]
     #[inline]
-    pub fn get<Q>(&self, k: &Q) -> Option<&V>
+    pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
         Q: PartialEq + ?Sized,
     {
-        todo!()
+        for (contained_key, contained_value) in &self.0 {
+            if contained_key.borrow() == key {
+                return Some(contained_value);
+            }
+        }
+        None
     }
 
+    /// Get a reference to the key-value pair inside the [`AssocList`] associated with the `key`.
     #[inline]
-    pub fn get_key_value<Q>(&self, k: &Q) -> Option<(&K, &V)>
+    pub fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
     where
         K: Borrow<Q>,
         Q: PartialEq + ?Sized,
     {
-        todo!()
+        for (contained_key, contained_value) in &self.0 {
+            if contained_key.borrow() == key {
+                return Some((contained_key, contained_value));
+            }
+        }
+        None
     }
 
+    /// Does the [`AssocList`] contain a value associated with the `key`.
     #[inline]
-    pub fn contains_key<Q>(&self, k: &Q) -> bool
+    pub fn contains_key<Q>(&self, key: &Q) -> bool
     where
         K: Borrow<Q>,
         Q: PartialEq + ?Sized,
     {
-        todo!()
+        for (contained_key, _contained_value) in &self.0 {
+            if contained_key.borrow() == key {
+                return true;
+            }
+        }
+        false
     }
 
+    /// Get mutable access to the value associated with the `key`.
     #[inline]
-    pub fn get_mut<Q>(&mut self, k: &Q) -> Option<&mut V>
+    pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         K: Borrow<Q>,
         Q: PartialEq + ?Sized,
     {
-        todo!()
+        for (contained_key, contained_value) in &mut self.0 {
+            if Borrow::<Q>::borrow(contained_key) == key {
+                return Some(contained_value);
+            }
+        }
+        None
     }
 
     /// Insert a new element for the given `key`.
