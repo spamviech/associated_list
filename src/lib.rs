@@ -64,9 +64,11 @@ type DefaultAllocator = ();
 pub struct AssocList<K, V, A: Allocator = DefaultAllocator> {
     #[cfg(feature = "allocator_api")]
     /// The vector of the [`AssocList`].
+    /// Invariant: all keys (first element of the tuple) are unique.
     vec: Vec<(K, V), A>,
     #[cfg(not(feature = "allocator_api"))]
     /// The vector of the [`AssocList`].
+    /// Invariant: all keys (first element of the tuple) are unique.
     vec: Vec<(K, V)>,
     /// PhantomData
     phantom: PhantomData<A>,
@@ -343,6 +345,15 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
 impl<K: PartialEq, V: PartialEq, A: Allocator> PartialEq for AssocList<K, V, A> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
+        if self.len() != other.len() {
+            // If the lengths don't match the list can't be equal.
+            return false;
+        }
+        // Since all keys are unique, and both lists have the same length,
+        // we only have to loop over the first and lookup in the second AssocList:
+        // If there is `key` in `other`, that is not part of `self`,
+        // then there is at least one `key` in `self`, that is not part of `other`,
+        // causing a `false` return value.
         for (key, value) in self {
             if other.get(key) != Some(value) {
                 return false;
