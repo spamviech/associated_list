@@ -125,6 +125,7 @@ impl<K, V> AssocList<K, V> {
             if contained_key == &key {
                 return Entry::Occupied(OccupiedEntry {
                     vec: &mut self.0,
+                    key,
                     index,
                 });
             }
@@ -152,6 +153,7 @@ impl<K, V> AssocList<K, V> {
     }
 
     /// Get a reference to the key-value pair inside the [`AssocList`] associated with the `key`.
+    #[must_use]
     #[inline]
     pub fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
     where
@@ -167,6 +169,7 @@ impl<K, V> AssocList<K, V> {
     }
 
     /// Does the [`AssocList`] contain a value associated with the `key`.
+    #[must_use]
     #[inline]
     pub fn contains_key<Q>(&self, key: &Q) -> bool
     where
@@ -182,6 +185,7 @@ impl<K, V> AssocList<K, V> {
     }
 
     /// Get mutable access to the value associated with the `key`.
+    #[must_use]
     #[inline]
     pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
@@ -198,14 +202,15 @@ impl<K, V> AssocList<K, V> {
 
     /// Insert a new element for the given `key`.
     /// If the [`AssocList`] already contains an element associated with the key, it is replaced and returned.
+    #[must_use]
     #[inline]
     pub fn insert(&mut self, key: K, value: V) -> Option<V>
     where
         K: PartialEq,
     {
-        for (enthaltener_key, enthaltener_value) in &mut self.0 {
-            if enthaltener_key == &key {
-                let bisher = mem::replace(enthaltener_value, value);
+        for (contained_key, contained_value) in &mut self.0 {
+            if contained_key == &key {
+                let bisher = mem::replace(contained_value, value);
                 return Some(bisher);
             }
         }
@@ -213,44 +218,70 @@ impl<K, V> AssocList<K, V> {
         None
     }
 
+    /// Remove the element associated with the `key` from the [`AssocList`] and return it.
+    #[must_use]
     #[inline]
-    pub fn remove<Q>(&mut self, k: &Q) -> Option<V>
+    pub fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Borrow<Q>,
         Q: PartialEq + ?Sized,
     {
-        todo!()
+        for (index, (enthaltener_key, _enthaltener_value)) in self.0.iter().enumerate() {
+            if enthaltener_key.borrow() == key {
+                let (_old_key, old_value) = self.0.swap_remove(index);
+                return Some(old_value);
+            }
+        }
+        None
     }
 
+    /// Remove the key-value pair associated with the `key` from the [`AssocList`] and return it.
+    #[must_use]
     #[inline]
-    pub fn remove_entry<Q>(&mut self, k: &Q) -> Option<(K, V)>
+    pub fn remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
     where
         K: Borrow<Q>,
         Q: PartialEq + ?Sized,
     {
-        todo!()
+        for (index, (enthaltener_key, _enthaltener_value)) in self.0.iter().enumerate() {
+            if enthaltener_key.borrow() == key {
+                let old_pair = self.0.swap_remove(index);
+                return Some(old_pair);
+            }
+        }
+        None
     }
 }
 
-impl<K, V> Extend<(K, V)> for AssocList<K, V> {
+impl<K: PartialEq, V> Extend<(K, V)> for AssocList<K, V> {
     #[inline]
     fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
-        todo!()
+        for (key, value) in iter {
+            // Bei wiederholten Schlüssel werden frühere Werte überschrieben.
+            let _ = self.insert(key, value);
+        }
     }
 }
 
-impl<'a, K, V> Extend<(&'a K, &'a V)> for AssocList<K, V> {
+impl<'a, K, V> Extend<(&'a K, &'a V)> for AssocList<K, V>
+where
+    K: PartialEq + Clone,
+    V: Clone,
+{
     #[inline]
     fn extend<T: IntoIterator<Item = (&'a K, &'a V)>>(&mut self, iter: T) {
-        todo!()
+        for (key, value) in iter {
+            // Bei wiederholten Schlüssel werden frühere Werte überschrieben.
+            let _ = self.insert(key.clone(), value.clone());
+        }
     }
 }
 
 impl<K: PartialEq, V, const N: usize> From<[(K, V); N]> for AssocList<K, V> {
     #[inline]
-    fn from(value: [(K, V); N]) -> Self {
+    fn from(array: [(K, V); N]) -> Self {
         let mut assoc_list = AssocList::with_capacity(N);
-        for (key, value) in value {
+        for (key, value) in array {
             // Bei wiederholten Schlüssel werden frühere Werte überschrieben.
             let _ = assoc_list.insert(key, value);
         }
@@ -280,6 +311,8 @@ impl<'a, K, V> IntoIterator for &'a AssocList<K, V> {
     }
 }
 
+/// Mutable Iterator for an [`AssocList`]. It is created by the [`iter_mut`](AssocList::iter_mut)-method.
+#[derive(Debug)]
 #[must_use]
 pub struct IterMut<'a, K, V>(slice::IterMut<'a, (K, V)>);
 
@@ -307,14 +340,13 @@ impl<K: PartialEq, V> FromIterator<(K, V)> for AssocList<K, V> {
     #[inline]
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         let mut assoc_list = AssocList::new();
-        for (key, value) in iter {
-            // Bei wiederholten Schlüssel werden frühere Werte überschrieben.
-            let _ = assoc_list.insert(key, value);
-        }
+        assoc_list.extend(iter);
         assoc_list
     }
 }
 
+/// Iterator for the keys of an [`AssocList`]. It is created by the [`keys`](AssocList::keys)-method.
+#[derive(Debug)]
 #[must_use]
 pub struct Keys<'a, K, V>(Iter<'a, (K, V)>);
 
@@ -327,6 +359,8 @@ impl<'a, K, V> Iterator for Keys<'a, K, V> {
     }
 }
 
+/// Consuming Iterator for the keys of an [`AssocList`]. It is created by the [`into_keys`](AssocList::into_keys)-method.
+#[derive(Debug)]
 #[must_use]
 pub struct IntoKeys<K, V>(IntoIter<(K, V)>);
 
@@ -339,6 +373,8 @@ impl<K, V> Iterator for IntoKeys<K, V> {
     }
 }
 
+/// Iterator for the values of an [`AssocList`]. It is created by the [`values`](AssocList::values)-method.
+#[derive(Debug)]
 #[must_use]
 pub struct Values<'a, K, V>(Iter<'a, (K, V)>);
 
@@ -351,6 +387,8 @@ impl<'a, K, V> Iterator for Values<'a, K, V> {
     }
 }
 
+/// Iterator for the mutable values of an [`AssocList`]. It is created by the [`values_mut`](AssocList::values_mut)-method.
+#[derive(Debug)]
 #[must_use]
 pub struct ValuesMut<'a, K, V>(slice::IterMut<'a, (K, V)>);
 
@@ -363,6 +401,8 @@ impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
     }
 }
 
+/// Consuming Iterator for the values of an [`AssocList`]. It is created by the [`into_values`](AssocList::into_values)-method.
+#[derive(Debug)]
 #[must_use]
 pub struct IntoValues<K, V>(IntoIter<(K, V)>);
 
@@ -377,12 +417,18 @@ impl<K, V> Iterator for IntoValues<K, V> {
 
 /// A view into an [`AssocList`] for a single element.
 /// It can be either present or missing.
+#[derive(Debug)]
+#[must_use]
 pub enum Entry<'a, K, V> {
+    /// The [`AssocList`] contains a value for the [`key`](Entry::key).
     Occupied(OccupiedEntry<'a, K, V>),
+    /// The [`AssocList`] doesn't contain a value for the [`key`](Entry::key).
     Vacant(VacantEntry<'a, K, V>),
 }
 
 impl<'a, K, V> Entry<'a, K, V> {
+    /// Return the `key` used to create the [`Entry`].
+    #[must_use]
     #[inline]
     pub fn key(&self) -> &K {
         match self {
@@ -391,50 +437,91 @@ impl<'a, K, V> Entry<'a, K, V> {
         }
     }
 
+    /// Ensures a value is in the entry by inserting the default if empty,
+    /// and returns a mutable reference to the value in the entry.
+    #[must_use]
     #[inline]
-    pub fn or_insert(self, value: V) -> &'a mut V {
+    pub fn or_insert(self, default: V) -> &'a mut V {
         match self {
             Entry::Occupied(occupied) => occupied.get_mut(),
-            Entry::Vacant(vacant) => vacant.insert(value),
+            Entry::Vacant(vacant) => vacant.insert(default),
         }
     }
 }
 
+/// A view into an occupied entry in an [`AssocList`]. It is part of the [`Entry`] enum.
+#[derive(Debug)]
+#[must_use]
 pub struct OccupiedEntry<'a, K, V> {
+    /// The vector of the [`AssocList`].
     vec: &'a mut Vec<(K, V)>,
+    /// The index of the element.
     index: usize,
+    /// The key used to create the [`Entry`].
+    key: K,
 }
 
 impl<'a, K, V> OccupiedEntry<'a, K, V> {
+    /// Return the `key` used to create the [`Entry`].
+    #[must_use]
     #[inline]
     pub fn key(&self) -> &K {
-        let (key, _value) = self.vec.get(self.index).expect("Index out of bounds!");
-        key
+        &self.key
     }
 
+    /// Get a reference to the Element contained in the [`AssocList`].
+    ///
+    /// ## Panics
+    ///
+    /// Programming error: if the index of the [`Entry`] is out-of-bounds.
+    #[must_use]
     #[inline]
     pub fn get(self) -> &'a V {
         let (_key, value) = self.vec.get(self.index).expect("Index out of bounds!");
         value
     }
 
+    /// Get a mutable reference to the Element contained in the [`AssocList`].
+    ///
+    /// ## Panics
+    ///
+    /// Programming error: if the index of the [`Entry`] is out-of-bounds.
+    #[must_use]
     #[inline]
     pub fn get_mut(self) -> &'a mut V {
         let (_key, value) = self.vec.get_mut(self.index).expect("Index out of bounds!");
         value
     }
 
+    /// Remove the element from the [`AssocList`], returning the key-value pair.
+    ///
+    /// ## Panics
+    ///
+    /// Programming error: if the index of the [`Entry`] is out-of-bounds.
+    #[must_use]
     #[inline]
     pub fn remove_entry(self) -> (K, V) {
         self.vec.swap_remove(self.index)
     }
 
+    /// Remove the element from the [`AssocList`], returning the value.
+    ///
+    /// ## Panics
+    ///
+    /// Programming error: if the index of the [`Entry`] is out-of-bounds.
+    #[must_use]
     #[inline]
     pub fn remove(self) -> V {
         let (_key, value) = self.vec.swap_remove(self.index);
         value
     }
 
+    /// Replace the element from the [`AssocList`], returning the previous value.
+    ///
+    /// ## Panics
+    ///
+    /// Programming error: if the index of the [`Entry`] is out-of-bounds.
+    #[must_use]
     #[inline]
     pub fn insert(&mut self, neuer_value: V) -> V {
         let (_key, value) = self.vec.get_mut(self.index).expect("Index out of bounds!");
@@ -442,12 +529,19 @@ impl<'a, K, V> OccupiedEntry<'a, K, V> {
     }
 }
 
+/// A view into a vacant entry in an [`AssocList`]. It is part of the [`Entry`] enum.
+#[derive(Debug)]
+#[must_use]
 pub struct VacantEntry<'a, K, V> {
+    /// The vector of the [`AssocList`].
     vec: &'a mut Vec<(K, V)>,
+    /// The key used to create the [`Entry`].
     key: K,
 }
 
 impl<'a, K, V> VacantEntry<'a, K, V> {
+    /// Return the `key` used to create the [`Entry`].
+    #[must_use]
     #[inline]
     pub fn key(&self) -> &K {
         &self.key
@@ -457,14 +551,12 @@ impl<'a, K, V> VacantEntry<'a, K, V> {
     ///
     /// ## Panics
     ///
-    /// programming error if [`Vec::last_mut`] returns [`None`] directly after a [`Vec::push`].
+    /// Programming error: if [`Vec::last_mut`] returns [`None`] directly after a [`Vec::push`].
+    #[must_use]
     #[inline]
     pub fn insert(self, value: V) -> &'a mut V {
         self.vec.push((self.key, value));
-        let (_key, value) = self
-            .vec
-            .last_mut()
-            .expect("Element wurde gerade hinzugefügt!");
-        value
+        let (_key, inserted_value) = self.vec.last_mut().expect("Element has just been added!");
+        inserted_value
     }
 }
