@@ -3,7 +3,6 @@
 
 use core::{
     borrow::Borrow,
-    iter::Map,
     mem,
     slice::{self, Iter},
 };
@@ -85,21 +84,32 @@ impl<K, V> AssocList<K, V> {
         IterMut(self.0.iter_mut())
     }
 
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
+    /// Removes all key-value pairs from the [`AssocList`] in bulk, returning all removed elements as an iterator.
+    /// If the iterator is dropped before being fully consumed, it drops the remaining removed elements.
+    ///
+    /// ## Leaking
+    ///
+    /// See [`Vec::drain`].
     #[inline]
     pub fn drain(&mut self) -> Drain<'_, (K, V)> {
         self.0.drain(..)
     }
 
+    /// Return the number of key-value pairs currently contained in the [`AssocList`].
+    #[must_use]
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns `true` if the [`AssocList`] currently contains no element.
+    #[must_use]
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Clears the [`AssocList`], removing all key-value pairs.
     #[inline]
     pub fn clear(&mut self) {
         self.0.clear();
