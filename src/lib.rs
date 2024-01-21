@@ -18,6 +18,9 @@ extern crate alloc;
 use alloc::alloc::Global;
 use alloc::vec::{self, IntoIter, Vec};
 
+#[cfg(test)]
+mod test;
+
 #[cfg(feature = "allocator_api")]
 /// Helper-trait to reduce the amount of required cfg-pragmas.
 ///
@@ -79,20 +82,14 @@ impl<K, V> AssocList<K, V> {
     #[must_use]
     #[inline]
     pub const fn new() -> Self {
-        AssocList {
-            vec: Vec::new(),
-            phantom: PhantomData,
-        }
+        AssocList { vec: Vec::new(), phantom: PhantomData }
     }
 
     /// Create a new [`AssocList`] with at least the specified `capacity`.
     #[must_use]
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self {
-        AssocList {
-            vec: Vec::with_capacity(capacity),
-            phantom: PhantomData,
-        }
+        AssocList { vec: Vec::with_capacity(capacity), phantom: PhantomData }
     }
 }
 
@@ -102,20 +99,14 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
     #[must_use]
     #[inline]
     pub const fn new_in(alloc: A) -> Self {
-        AssocList {
-            vec: Vec::new_in(alloc),
-            phantom: PhantomData,
-        }
+        AssocList { vec: Vec::new_in(alloc), phantom: PhantomData }
     }
 
     /// Create a new [`AssocList`] with at least the specified `capacity` with the provided allocator.
     #[must_use]
     #[inline]
     pub fn with_capacity_in(capacity: usize, alloc: A) -> Self {
-        AssocList {
-            vec: Vec::with_capacity_in(capacity, alloc),
-            phantom: PhantomData,
-        }
+        AssocList { vec: Vec::with_capacity_in(capacity, alloc), phantom: PhantomData }
     }
 }
 
@@ -129,10 +120,7 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
     /// Return a consuming iterator for all keys in the [`AssocList`].
     #[inline]
     pub fn into_keys(self) -> IntoKeys<K, V, A> {
-        IntoKeys {
-            iter: self.vec.into_iter(),
-            phantom: self.phantom,
-        }
+        IntoKeys { iter: self.vec.into_iter(), phantom: self.phantom }
     }
 
     /// Return an iterator for all values in the [`AssocList`].
@@ -150,10 +138,7 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
     /// Return a consuming iterator for all values in the [`AssocList`].
     #[inline]
     pub fn into_values(self) -> IntoValues<K, V, A> {
-        IntoValues {
-            iter: self.vec.into_iter(),
-            phantom: self.phantom,
-        }
+        IntoValues { iter: self.vec.into_iter(), phantom: self.phantom }
     }
 
     /// Return an iterator for all key-value pairs in the [`AssocList`].
@@ -176,10 +161,7 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
     /// See [`Vec::drain`].
     #[inline]
     pub fn drain(&mut self) -> Drain<'_, K, V, A> {
-        Drain {
-            iter: self.vec.drain(..),
-            phantom: self.phantom,
-        }
+        Drain { iter: self.vec.drain(..), phantom: self.phantom }
     }
 
     /// Return the number of key-value pairs currently contained in the [`AssocList`].
@@ -218,11 +200,7 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
                 });
             }
         }
-        Entry::Vacant(VacantEntry {
-            vec: &mut self.vec,
-            phantom: self.phantom,
-            key,
-        })
+        Entry::Vacant(VacantEntry { vec: &mut self.vec, phantom: self.phantom, key })
     }
 
     /// Get a reference to the value associated with the `key`.
@@ -368,10 +346,7 @@ impl<K: Eq, V: Eq, A: Allocator> Eq for AssocList<K, V, A> {}
 impl<K: Default, V: Default> Default for AssocList<K, V> {
     #[inline]
     fn default() -> Self {
-        Self {
-            vec: Vec::new(),
-            phantom: PhantomData,
-        }
+        Self { vec: Vec::new(), phantom: PhantomData }
     }
 }
 
