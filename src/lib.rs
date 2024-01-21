@@ -4,6 +4,7 @@
 use core::{
     borrow::Borrow,
     mem,
+    ops::{Index, IndexMut},
     slice::{self, Iter},
 };
 
@@ -286,6 +287,22 @@ impl<K: PartialEq, V, const N: usize> From<[(K, V); N]> for AssocList<K, V> {
             let _ = assoc_list.insert(key, value);
         }
         assoc_list
+    }
+}
+
+impl<Q: PartialEq, K: Borrow<Q>, V> Index<Q> for AssocList<K, V> {
+    type Output = V;
+
+    #[inline]
+    fn index(&self, key: Q) -> &Self::Output {
+        self.get(&key).expect("Unknown key")
+    }
+}
+
+impl<Q: PartialEq, K: Borrow<Q>, V> IndexMut<Q> for AssocList<K, V> {
+    #[inline]
+    fn index_mut(&mut self, key: Q) -> &mut Self::Output {
+        self.get_mut(&key).expect("Unknown key")
     }
 }
 
