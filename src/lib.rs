@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 #![no_std]
+#![cfg_attr(feature = "doc_auto_cfg", feature(doc_auto_cfg))]
 #![cfg_attr(feature = "allocator_api", feature(allocator_api))]
 
 #[cfg(feature = "allocator_api")]
@@ -47,15 +48,14 @@ type DefaultAllocator = Global;
 /// Otherwise, it resolves to [`()`].
 type DefaultAllocator = ();
 
-/// An associated list based on a [Vec], providing the usual map functionality.
+/// An associated list based on a [`Vec`], providing the usual map functionality.
 ///
 /// The methods are purely based on the [`PartialEq`] implementation of the key types,
 /// so most have a runtime characteristic of `O(n)`.
 ///
 /// In general, you should prefer to use either a [`HashMap`](std::collections::HashMap),
-/// or a [`BTreeMap`](std::collections::BTreeMap). The [`AssocList`]
-/// zu bevorzugen. Die [`AssocList`] exists as a fallback if the key implements
-/// neither [`Hash`](std::hash::Hash) nor [`Ord`].
+/// or a [`BTreeMap`](std::collections::BTreeMap).
+/// The [`AssocList`] exists as a fallback if the key implements neither [`Hash`](std::hash::Hash) nor [`Ord`].
 ///
 /// Note: All methods only require [`PartialEq`] for the key, but there is a strong argument to only use key types
 /// that are also (at least nearly) [`Ord`]. For example, elements associated with a [`f32::NAN`]
