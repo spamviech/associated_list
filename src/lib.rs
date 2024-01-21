@@ -203,6 +203,22 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
         Entry::Vacant(VacantEntry { vec: &mut self.vec, phantom: self.phantom, key })
     }
 
+    /// Does the [`AssocList`] contain a value associated with the `key`.
+    #[must_use]
+    #[inline]
+    pub fn contains_key<Q>(&self, key: &Q) -> bool
+    where
+        K: Borrow<Q>,
+        Q: PartialEq + ?Sized,
+    {
+        for (contained_key, _contained_value) in &self.vec {
+            if contained_key.borrow() == key {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Get a reference to the value associated with the `key`.
     #[must_use]
     #[inline]
@@ -233,22 +249,6 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
             }
         }
         None
-    }
-
-    /// Does the [`AssocList`] contain a value associated with the `key`.
-    #[must_use]
-    #[inline]
-    pub fn contains_key<Q>(&self, key: &Q) -> bool
-    where
-        K: Borrow<Q>,
-        Q: PartialEq + ?Sized,
-    {
-        for (contained_key, _contained_value) in &self.vec {
-            if contained_key.borrow() == key {
-                return true;
-            }
-        }
-        false
     }
 
     /// Get mutable access to the value associated with the `key`.
