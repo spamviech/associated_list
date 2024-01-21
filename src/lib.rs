@@ -1,16 +1,53 @@
 #![doc = include_str!("../README.md")]
 #![no_std]
+#![cfg_attr(feature = "allocator_api", feature(allocator_api))]
 
+#[cfg(feature = "allocator_api")]
+use core::alloc::Allocator as ActualAllocator;
 use core::{
     borrow::Borrow,
+    marker::PhantomData,
     mem,
     ops::{Index, IndexMut},
     slice::{self, Iter},
 };
 
 extern crate alloc;
-use alloc::vec::{Drain, IntoIter, Vec};
-// TODO allocator-feature with nightly requirements
+#[cfg(feature = "allocator_api")]
+use alloc::alloc::Global;
+use alloc::vec::{self, IntoIter, Vec};
+
+#[cfg(feature = "allocator_api")]
+/// Helper-trait to reduce the amount of required cfg-pragmas.
+///
+/// When the feature `allocator_api` is active, resolves to an alias-trait for [`core::alloc::Allocator`].
+/// Otherwise, it is just an empty trait, only implemented for [`()`].
+pub trait Allocator: ActualAllocator {}
+#[cfg(feature = "allocator_api")]
+impl<T: ActualAllocator> Allocator for T {}
+#[cfg(not(feature = "allocator_api"))]
+/// Helper-trait to reduce the amount of required cfg-pragmas.
+///
+/// When the feature `allocator_api` is active, resolves to an alias-trait for [`core::alloc::Allocator`].
+/// Otherwise, it is just an empty trait, only implemented for [`()`].
+pub trait Allocator {}
+#[cfg(not(feature = "allocator_api"))]
+impl Allocator for () {}
+
+#[cfg(feature = "allocator_api")]
+/// The default type for the [`Allocator`]-parameter of an [`AssocList`].
+///
+/// When the feature `allocator_api` is active, resolves to [`Global`](alloc::alloc::Global).
+/// Otherwise, it resolves to [`()`].
+type DefaultAllocator = Global;
+#[cfg(not(feature = "allocator_api"))]
+/// The default type for the [`Allocator`]-parameter of an [`AssocList`].
+///
+/// When the feature `allocator_api` is active, resolves to [`Global`](alloc::alloc::Global).
+/// Otherwise, it resolves to [`()`].
+type DefaultAllocator = ();
+
+// FIXME PartialEq, Eq-Instanzen sind falsch (Reihenfolge wird aktuell beachtet!)
 
 /// An associated list based on a [Vec], providing the usual map functionality.
 ///
@@ -25,64 +62,110 @@ use alloc::vec::{Drain, IntoIter, Vec};
 /// Note: All methods only require [`PartialEq`] for the key, but there is a strong argument to only use key types
 /// that are also (at least nearly) [`Ord`]. For example, elements associated with a [`f32::NAN`]
 /// cannot be found or deleted ([`PartialEq::eq`] will alway return `false`).
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct AssocList<K, V>(Vec<(K, V)>);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AssocList<K, V, A: Allocator = DefaultAllocator> {
+    #[cfg(feature = "allocator_api")]
+    /// The vector of the [`AssocList`].
+    vec: Vec<(K, V), A>,
+    #[cfg(not(feature = "allocator_api"))]
+    /// The vector of the [`AssocList`].
+    vec: Vec<(K, V)>,
+    /// PhantomData
+    phantom: PhantomData<A>,
+}
 
 impl<K, V> AssocList<K, V> {
     /// Create a new [`AssocList`].
     #[must_use]
     #[inline]
     pub const fn new() -> Self {
-        AssocList(Vec::new())
+        AssocList {
+            vec: Vec::new(),
+            phantom: PhantomData,
+        }
     }
 
     /// Create a new [`AssocList`] with at least the specified `capacity`.
     #[must_use]
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self {
-        AssocList(Vec::with_capacity(capacity))
+        AssocList {
+            vec: Vec::with_capacity(capacity),
+            phantom: PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "allocator_api")]
+impl<K, V, A: Allocator> AssocList<K, V, A> {
+    /// Create a new [`AssocList`] with the provided allocator.
+    #[must_use]
+    #[inline]
+    pub const fn new_in(alloc: A) -> Self {
+        AssocList {
+            vec: Vec::new_in(alloc),
+            phantom: PhantomData,
+        }
     }
 
+    /// Create a new [`AssocList`] with at least the specified `capacity` with the provided allocator.
+    #[must_use]
+    #[inline]
+    pub fn with_capacity_in(capacity: usize, alloc: A) -> Self {
+        AssocList {
+            vec: Vec::with_capacity_in(capacity, alloc),
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<K, V, A: Allocator> AssocList<K, V, A> {
     /// Return an iterator for all keys in the [`AssocList`].
     #[inline]
     pub fn keys(&self) -> Keys<'_, K, V> {
-        Keys(self.0.iter())
+        Keys(self.vec.iter())
     }
 
     /// Return a consuming iterator for all keys in the [`AssocList`].
     #[inline]
-    pub fn into_keys(self) -> IntoKeys<K, V> {
-        IntoKeys(self.0.into_iter())
+    pub fn into_keys(self) -> IntoKeys<K, V, A> {
+        IntoKeys {
+            iter: self.vec.into_iter(),
+            phantom: self.phantom,
+        }
     }
 
     /// Return an iterator for all values in the [`AssocList`].
     #[inline]
     pub fn values(&self) -> Values<'_, K, V> {
-        Values(self.0.iter())
+        Values(self.vec.iter())
     }
 
     /// Return an iterator for mutable access to all values in the [`AssocList`].
     #[inline]
     pub fn values_mut(&mut self) -> ValuesMut<'_, K, V> {
-        ValuesMut(self.0.iter_mut())
+        ValuesMut(self.vec.iter_mut())
     }
 
     /// Return a consuming iterator for all values in the [`AssocList`].
     #[inline]
-    pub fn into_values(self) -> IntoValues<K, V> {
-        IntoValues(self.0.into_iter())
+    pub fn into_values(self) -> IntoValues<K, V, A> {
+        IntoValues {
+            iter: self.vec.into_iter(),
+            phantom: self.phantom,
+        }
     }
 
     /// Return an iterator for all key-value pairs in the [`AssocList`].
     #[inline]
     pub fn iter(&self) -> Iter<'_, (K, V)> {
-        self.0.iter()
+        self.vec.iter()
     }
 
     /// Return an iterator for all key-value pairs in the [`AssocList`].
     #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
-        IterMut(self.0.iter_mut())
+        IterMut(self.vec.iter_mut())
     }
 
     /// Removes all key-value pairs from the [`AssocList`] in bulk, returning all removed elements as an iterator.
@@ -92,47 +175,52 @@ impl<K, V> AssocList<K, V> {
     ///
     /// See [`Vec::drain`].
     #[inline]
-    pub fn drain(&mut self) -> Drain<'_, (K, V)> {
-        self.0.drain(..)
+    pub fn drain(&mut self) -> Drain<'_, K, V, A> {
+        Drain {
+            iter: self.vec.drain(..),
+            phantom: self.phantom,
+        }
     }
 
     /// Return the number of key-value pairs currently contained in the [`AssocList`].
     #[must_use]
     #[inline]
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.vec.len()
     }
 
     /// Returns `true` if the [`AssocList`] currently contains no element.
     #[must_use]
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.vec.is_empty()
     }
 
     /// Clears the [`AssocList`], removing all key-value pairs.
     #[inline]
     pub fn clear(&mut self) {
-        self.0.clear();
+        self.vec.clear();
     }
 
     /// Get the [`Entry`] associated with the `key`.
     #[inline]
-    pub fn entry(&mut self, key: K) -> Entry<'_, K, V>
+    pub fn entry(&mut self, key: K) -> Entry<'_, K, V, A>
     where
         K: PartialEq,
     {
-        for (index, (contained_key, _contained_value)) in self.0.iter_mut().enumerate() {
+        for (index, (contained_key, _contained_value)) in self.vec.iter_mut().enumerate() {
             if contained_key == &key {
                 return Entry::Occupied(OccupiedEntry {
-                    vec: &mut self.0,
+                    vec: &mut self.vec,
+                    phantom: self.phantom,
                     key,
                     index,
                 });
             }
         }
         Entry::Vacant(VacantEntry {
-            vec: &mut self.0,
+            vec: &mut self.vec,
+            phantom: self.phantom,
             key,
         })
     }
@@ -145,7 +233,7 @@ impl<K, V> AssocList<K, V> {
         K: Borrow<Q>,
         Q: PartialEq + ?Sized,
     {
-        for (contained_key, contained_value) in &self.0 {
+        for (contained_key, contained_value) in &self.vec {
             if contained_key.borrow() == key {
                 return Some(contained_value);
             }
@@ -161,7 +249,7 @@ impl<K, V> AssocList<K, V> {
         K: Borrow<Q>,
         Q: PartialEq + ?Sized,
     {
-        for (contained_key, contained_value) in &self.0 {
+        for (contained_key, contained_value) in &self.vec {
             if contained_key.borrow() == key {
                 return Some((contained_key, contained_value));
             }
@@ -177,7 +265,7 @@ impl<K, V> AssocList<K, V> {
         K: Borrow<Q>,
         Q: PartialEq + ?Sized,
     {
-        for (contained_key, _contained_value) in &self.0 {
+        for (contained_key, _contained_value) in &self.vec {
             if contained_key.borrow() == key {
                 return true;
             }
@@ -193,7 +281,7 @@ impl<K, V> AssocList<K, V> {
         K: Borrow<Q>,
         Q: PartialEq + ?Sized,
     {
-        for (contained_key, contained_value) in &mut self.0 {
+        for (contained_key, contained_value) in &mut self.vec {
             if Borrow::<Q>::borrow(contained_key) == key {
                 return Some(contained_value);
             }
@@ -209,13 +297,13 @@ impl<K, V> AssocList<K, V> {
     where
         K: PartialEq,
     {
-        for (contained_key, contained_value) in &mut self.0 {
+        for (contained_key, contained_value) in &mut self.vec {
             if contained_key == &key {
                 let bisher = mem::replace(contained_value, value);
                 return Some(bisher);
             }
         }
-        self.0.push((key, value));
+        self.vec.push((key, value));
         None
     }
 
@@ -227,9 +315,9 @@ impl<K, V> AssocList<K, V> {
         K: Borrow<Q>,
         Q: PartialEq + ?Sized,
     {
-        for (index, (enthaltener_key, _enthaltener_value)) in self.0.iter().enumerate() {
+        for (index, (enthaltener_key, _enthaltener_value)) in self.vec.iter().enumerate() {
             if enthaltener_key.borrow() == key {
-                let (_old_key, old_value) = self.0.swap_remove(index);
+                let (_old_key, old_value) = self.vec.swap_remove(index);
                 return Some(old_value);
             }
         }
@@ -244,9 +332,9 @@ impl<K, V> AssocList<K, V> {
         K: Borrow<Q>,
         Q: PartialEq + ?Sized,
     {
-        for (index, (enthaltener_key, _enthaltener_value)) in self.0.iter().enumerate() {
+        for (index, (enthaltener_key, _enthaltener_value)) in self.vec.iter().enumerate() {
             if enthaltener_key.borrow() == key {
-                let old_pair = self.0.swap_remove(index);
+                let old_pair = self.vec.swap_remove(index);
                 return Some(old_pair);
             }
         }
@@ -254,7 +342,17 @@ impl<K, V> AssocList<K, V> {
     }
 }
 
-impl<K: PartialEq, V> Extend<(K, V)> for AssocList<K, V> {
+impl<K: Default, V: Default> Default for AssocList<K, V> {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            vec: Vec::new(),
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<K: PartialEq, V, A: Allocator> Extend<(K, V)> for AssocList<K, V, A> {
     #[inline]
     fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
         for (key, value) in iter {
@@ -264,7 +362,7 @@ impl<K: PartialEq, V> Extend<(K, V)> for AssocList<K, V> {
     }
 }
 
-impl<'a, K, V> Extend<(&'a K, &'a V)> for AssocList<K, V>
+impl<'a, K, V, A: Allocator> Extend<(&'a K, &'a V)> for AssocList<K, V, A>
 where
     K: PartialEq + Clone,
     V: Clone,
@@ -290,7 +388,7 @@ impl<K: PartialEq, V, const N: usize> From<[(K, V); N]> for AssocList<K, V> {
     }
 }
 
-impl<Q: PartialEq, K: Borrow<Q>, V> Index<Q> for AssocList<K, V> {
+impl<Q: PartialEq, K: Borrow<Q>, V, A: Allocator> Index<Q> for AssocList<K, V, A> {
     type Output = V;
 
     #[inline]
@@ -299,32 +397,58 @@ impl<Q: PartialEq, K: Borrow<Q>, V> Index<Q> for AssocList<K, V> {
     }
 }
 
-impl<Q: PartialEq, K: Borrow<Q>, V> IndexMut<Q> for AssocList<K, V> {
+impl<Q: PartialEq, K: Borrow<Q>, V, A: Allocator> IndexMut<Q> for AssocList<K, V, A> {
     #[inline]
     fn index_mut(&mut self, key: Q) -> &mut Self::Output {
         self.get_mut(&key).expect("Unknown key")
     }
 }
 
-impl<K, V> IntoIterator for AssocList<K, V> {
+impl<K, V, A: Allocator> IntoIterator for AssocList<K, V, A> {
     type Item = (K, V);
 
+    #[cfg(feature = "allocator_api")]
+    type IntoIter = IntoIter<(K, V), A>;
+    #[cfg(not(feature = "allocator_api"))]
     type IntoIter = IntoIter<(K, V)>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+        self.vec.into_iter()
     }
 }
 
-impl<'a, K, V> IntoIterator for &'a AssocList<K, V> {
+impl<'a, K, V, A: Allocator> IntoIterator for &'a AssocList<K, V, A> {
     type Item = &'a (K, V);
 
     type IntoIter = Iter<'a, (K, V)>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
+        self.vec.iter()
+    }
+}
+
+/// Draining Iterator for an [`AssocList`]. It is created by the [`drain`](AssocList::drain)-method.
+#[derive(Debug)]
+#[must_use]
+pub struct Drain<'a, K, V, A: Allocator> {
+    #[cfg(feature = "allocator_api")]
+    /// The Iterator from a [`Vec`] the implementation is based on.
+    iter: vec::Drain<'a, (K, V), A>,
+    #[cfg(not(feature = "allocator_api"))]
+    /// The Iterator from a [`Vec`] the implementation is based on.
+    iter: vec::Drain<'a, (K, V)>,
+    /// PhantomData
+    phantom: PhantomData<A>,
+}
+
+impl<K, V, A: Allocator> Iterator for Drain<'_, K, V, A> {
+    type Item = (K, V);
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
     }
 }
 
@@ -342,14 +466,14 @@ impl<'a, K, V> Iterator for IterMut<'a, K, V> {
     }
 }
 
-impl<'a, K, V> IntoIterator for &'a mut AssocList<K, V> {
+impl<'a, K, V, A: Allocator> IntoIterator for &'a mut AssocList<K, V, A> {
     type Item = (&'a K, &'a mut V);
 
     type IntoIter = IterMut<'a, K, V>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        IterMut(self.0.iter_mut())
+        IterMut(self.vec.iter_mut())
     }
 }
 
@@ -379,14 +503,23 @@ impl<'a, K, V> Iterator for Keys<'a, K, V> {
 /// Consuming Iterator for the keys of an [`AssocList`]. It is created by the [`into_keys`](AssocList::into_keys)-method.
 #[derive(Debug)]
 #[must_use]
-pub struct IntoKeys<K, V>(IntoIter<(K, V)>);
+pub struct IntoKeys<K, V, A: Allocator> {
+    #[cfg(feature = "allocator_api")]
+    /// The Iterator from a [`Vec`] the implementation is based on.
+    iter: IntoIter<(K, V), A>,
+    #[cfg(not(feature = "allocator_api"))]
+    /// The Iterator from a [`Vec`] the implementation is based on.
+    iter: IntoIter<(K, V)>,
+    /// PhantomData
+    phantom: PhantomData<A>,
+}
 
-impl<K, V> Iterator for IntoKeys<K, V> {
+impl<K, V, A: Allocator> Iterator for IntoKeys<K, V, A> {
     type Item = K;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|(key, _value)| key)
+        self.iter.next().map(|(key, _value)| key)
     }
 }
 
@@ -421,14 +554,23 @@ impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
 /// Consuming Iterator for the values of an [`AssocList`]. It is created by the [`into_values`](AssocList::into_values)-method.
 #[derive(Debug)]
 #[must_use]
-pub struct IntoValues<K, V>(IntoIter<(K, V)>);
+pub struct IntoValues<K, V, A: Allocator> {
+    #[cfg(feature = "allocator_api")]
+    /// The Iterator from a [`Vec`] the implementation is based on.
+    iter: IntoIter<(K, V), A>,
+    #[cfg(not(feature = "allocator_api"))]
+    /// The Iterator from a [`Vec`] the implementation is based on.
+    iter: IntoIter<(K, V)>,
+    /// PhantomData
+    phantom: PhantomData<A>,
+}
 
-impl<K, V> Iterator for IntoValues<K, V> {
+impl<K, V, A: Allocator> Iterator for IntoValues<K, V, A> {
     type Item = V;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|(_key, value)| value)
+        self.iter.next().map(|(_key, value)| value)
     }
 }
 
@@ -436,14 +578,14 @@ impl<K, V> Iterator for IntoValues<K, V> {
 /// It can be either present or missing.
 #[derive(Debug)]
 #[must_use]
-pub enum Entry<'a, K, V> {
+pub enum Entry<'a, K, V, A: Allocator = DefaultAllocator> {
     /// The [`AssocList`] contains a value for the [`key`](Entry::key).
-    Occupied(OccupiedEntry<'a, K, V>),
+    Occupied(OccupiedEntry<'a, K, V, A>),
     /// The [`AssocList`] doesn't contain a value for the [`key`](Entry::key).
-    Vacant(VacantEntry<'a, K, V>),
+    Vacant(VacantEntry<'a, K, V, A>),
 }
 
-impl<'a, K, V> Entry<'a, K, V> {
+impl<'a, K, V, A: Allocator> Entry<'a, K, V, A> {
     /// Return the `key` used to create the [`Entry`].
     #[must_use]
     #[inline]
@@ -469,16 +611,22 @@ impl<'a, K, V> Entry<'a, K, V> {
 /// A view into an occupied entry in an [`AssocList`]. It is part of the [`Entry`] enum.
 #[derive(Debug)]
 #[must_use]
-pub struct OccupiedEntry<'a, K, V> {
+pub struct OccupiedEntry<'a, K, V, A: Allocator = DefaultAllocator> {
+    #[cfg(feature = "allocator_api")]
+    /// The vector of the [`AssocList`].
+    vec: &'a mut Vec<(K, V), A>,
+    #[cfg(not(feature = "allocator_api"))]
     /// The vector of the [`AssocList`].
     vec: &'a mut Vec<(K, V)>,
+    /// PhantomData
+    phantom: PhantomData<A>,
     /// The index of the element.
     index: usize,
     /// The key used to create the [`Entry`].
     key: K,
 }
 
-impl<'a, K, V> OccupiedEntry<'a, K, V> {
+impl<'a, K, V, A: Allocator> OccupiedEntry<'a, K, V, A> {
     /// Return the `key` used to create the [`Entry`].
     #[must_use]
     #[inline]
@@ -549,14 +697,20 @@ impl<'a, K, V> OccupiedEntry<'a, K, V> {
 /// A view into a vacant entry in an [`AssocList`]. It is part of the [`Entry`] enum.
 #[derive(Debug)]
 #[must_use]
-pub struct VacantEntry<'a, K, V> {
+pub struct VacantEntry<'a, K, V, A: Allocator = DefaultAllocator> {
+    #[cfg(feature = "allocator_api")]
+    /// The vector of the [`AssocList`].
+    vec: &'a mut Vec<(K, V), A>,
+    #[cfg(not(feature = "allocator_api"))]
     /// The vector of the [`AssocList`].
     vec: &'a mut Vec<(K, V)>,
+    /// PhantomData
+    phantom: PhantomData<A>,
     /// The key used to create the [`Entry`].
     key: K,
 }
 
-impl<'a, K, V> VacantEntry<'a, K, V> {
+impl<'a, K, V, A: Allocator> VacantEntry<'a, K, V, A> {
     /// Return the `key` used to create the [`Entry`].
     #[must_use]
     #[inline]

@@ -11,6 +11,15 @@ repository = "https://github.com/spamviech/associated_list"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = []
+# collection of all nightly-only features
+nightly = ["allocator_api"]
+# add an "allocator"-parameter to the AssocList. Requires the "allocator_api" feature/a nightly toolchain.
+allocator_api = []
+
+[dependencies]
+
 [lints.rust]
 # Activate all warnings/lints except: box_pointers, non_ascii_idents, unstable_features
 absolute_paths_not_starting_with_crate = "warn"
@@ -164,5 +173,3 @@ unwrap_used = "warn"
 use_debug = "warn"
 verbose_file_reads = "warn"
 wildcard_enum_match_arm = "warn"
-
-[dependencies]
