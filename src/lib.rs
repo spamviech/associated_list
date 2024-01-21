@@ -5,7 +5,7 @@ use core::{
     borrow::Borrow,
     iter::Map,
     mem,
-    slice::{Iter, IterMut},
+    slice::{self, Iter},
 };
 
 extern crate alloc;
@@ -43,39 +43,46 @@ impl<K, V> AssocList<K, V> {
         AssocList(Vec::with_capacity(capacity))
     }
 
+    /// Return an iterator for all keys in the [`AssocList`].
     #[inline]
     pub fn keys(&self) -> Keys<'_, K, V> {
         Keys(self.0.iter())
     }
 
+    /// Return a consuming iterator for all keys in the [`AssocList`].
     #[inline]
     pub fn into_keys(self) -> IntoKeys<K, V> {
         IntoKeys(self.0.into_iter())
     }
 
+    /// Return an iterator for all values in the [`AssocList`].
     #[inline]
     pub fn values(&self) -> Values<'_, K, V> {
         Values(self.0.iter())
     }
 
+    /// Return an iterator for mutable access to all values in the [`AssocList`].
     #[inline]
     pub fn values_mut(&mut self) -> ValuesMut<'_, K, V> {
         ValuesMut(self.0.iter_mut())
     }
 
+    /// Return a consuming iterator for all values in the [`AssocList`].
     #[inline]
     pub fn into_values(self) -> IntoValues<K, V> {
         IntoValues(self.0.into_iter())
     }
 
+    /// Return an iterator for all key-value pairs in the [`AssocList`].
     #[inline]
     pub fn iter(&self) -> Iter<'_, (K, V)> {
         self.0.iter()
     }
 
+    /// Return an iterator for all key-value pairs in the [`AssocList`].
     #[inline]
-    pub fn iter_mut(&mut self) -> IterMut<'_, (K, V)> {
-        self.0.iter_mut()
+    pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
+        IterMut(self.0.iter_mut())
     }
 
     #[inline]
@@ -95,7 +102,7 @@ impl<K, V> AssocList<K, V> {
 
     #[inline]
     pub fn clear(&mut self) {
-        self.0.clear()
+        self.0.clear();
     }
 
     /// Get the [`Entry`] associated with the `key`.
@@ -238,14 +245,26 @@ impl<'a, K, V> IntoIterator for &'a AssocList<K, V> {
     }
 }
 
-impl<'a, K, V> IntoIterator for &'a mut AssocList<K, V> {
-    type Item = &'a mut (K, V);
+#[must_use]
+pub struct IterMut<'a, K, V>(slice::IterMut<'a, (K, V)>);
 
-    type IntoIter = IterMut<'a, (K, V)>;
+impl<'a, K, V> Iterator for IterMut<'a, K, V> {
+    type Item = (&'a K, &'a mut V);
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(key, value)| (&*key, value))
+    }
+}
+
+impl<'a, K, V> IntoIterator for &'a mut AssocList<K, V> {
+    type Item = (&'a K, &'a mut V);
+
+    type IntoIter = IterMut<'a, K, V>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        self.0.iter_mut()
+        IterMut(self.0.iter_mut())
     }
 }
 
@@ -261,68 +280,63 @@ impl<K: PartialEq, V> FromIterator<(K, V)> for AssocList<K, V> {
     }
 }
 
+#[must_use]
 pub struct Keys<'a, K, V>(Iter<'a, (K, V)>);
 
-impl<'a, K, V> IntoIterator for Keys<'a, K, V> {
+impl<'a, K, V> Iterator for Keys<'a, K, V> {
     type Item = &'a K;
 
-    type IntoIter = Map<Iter<'a, (K, V)>, fn(&'a (K, V)) -> &'a K>;
-
     #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        todo!()
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(key, _value)| key)
     }
 }
 
+#[must_use]
 pub struct IntoKeys<K, V>(IntoIter<(K, V)>);
 
-impl<K, V> IntoIterator for IntoKeys<K, V> {
+impl<K, V> Iterator for IntoKeys<K, V> {
     type Item = K;
 
-    type IntoIter = Map<IntoIter<(K, V)>, fn((K, V)) -> K>;
-
     #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        todo!()
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(key, _value)| key)
     }
 }
 
+#[must_use]
 pub struct Values<'a, K, V>(Iter<'a, (K, V)>);
 
-impl<'a, K, V> IntoIterator for Values<'a, K, V> {
+impl<'a, K, V> Iterator for Values<'a, K, V> {
     type Item = &'a V;
 
-    type IntoIter = Map<Iter<'a, (K, V)>, fn(&'a (K, V)) -> &'a V>;
-
     #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        todo!()
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(_key, value)| value)
     }
 }
 
-pub struct ValuesMut<'a, K, V>(IterMut<'a, (K, V)>);
+#[must_use]
+pub struct ValuesMut<'a, K, V>(slice::IterMut<'a, (K, V)>);
 
-impl<'a, K, V> IntoIterator for ValuesMut<'a, K, V> {
+impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
     type Item = &'a mut V;
 
-    type IntoIter = Map<IterMut<'a, (K, V)>, fn(&'a mut (K, V)) -> &'a mut V>;
-
     #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        todo!()
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(_key, value)| value)
     }
 }
 
+#[must_use]
 pub struct IntoValues<K, V>(IntoIter<(K, V)>);
 
-impl<K, V> IntoIterator for IntoValues<K, V> {
+impl<K, V> Iterator for IntoValues<K, V> {
     type Item = V;
 
-    type IntoIter = Map<IntoIter<(K, V)>, fn((K, V)) -> V>;
-
     #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        todo!()
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|(_key, value)| value)
     }
 }
 
