@@ -47,8 +47,6 @@ type DefaultAllocator = Global;
 /// Otherwise, it resolves to [`()`].
 type DefaultAllocator = ();
 
-// FIXME PartialEq, Eq-Instanzen sind falsch (Reihenfolge wird aktuell beachtet!)
-
 /// An associated list based on a [Vec], providing the usual map functionality.
 ///
 /// The methods are purely based on the [`PartialEq`] implementation of the key types,
@@ -62,7 +60,7 @@ type DefaultAllocator = ();
 /// Note: All methods only require [`PartialEq`] for the key, but there is a strong argument to only use key types
 /// that are also (at least nearly) [`Ord`]. For example, elements associated with a [`f32::NAN`]
 /// cannot be found or deleted ([`PartialEq::eq`] will alway return `false`).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct AssocList<K, V, A: Allocator = DefaultAllocator> {
     #[cfg(feature = "allocator_api")]
     /// The vector of the [`AssocList`].
@@ -341,6 +339,20 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
         None
     }
 }
+
+impl<K: PartialEq, V: PartialEq, A: Allocator> PartialEq for AssocList<K, V, A> {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        for (key, value) in self {
+            if other.get(key) != Some(value) {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+impl<K: Eq, V: Eq, A: Allocator> Eq for AssocList<K, V, A> {}
 
 impl<K: Default, V: Default> Default for AssocList<K, V> {
     #[inline]
