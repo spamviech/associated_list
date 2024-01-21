@@ -5,7 +5,7 @@ description = "An associated list, for cases when the key implements neither Has
 authors = ["spamviech <spamviech@web.de>"]
 edition = "2021"
 license = "MIT"
-publish = false
+publish = true
 rust-version = "1.75"
 repository = "https://github.com/spamviech/associated_list"
 
