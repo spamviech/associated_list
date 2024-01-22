@@ -1,6 +1,6 @@
 [package]
 name = "associated_list"
-version = "0.1.1"
+version = "0.2.0"
 description = "An associated list, for cases when the key implements neither Hash nor Ord."
 authors = ["spamviech <spamviech@web.de>"]
 edition = "2021"

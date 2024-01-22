@@ -25,7 +25,8 @@ mod test;
 /// Helper-trait to reduce the amount of required cfg-pragmas.
 ///
 /// When the feature `allocator_api` is active, resolves to an alias-trait for [`core::alloc::Allocator`].
-/// Otherwise, it is just an empty trait, only implemented for [`()`].
+/// Otherwise, it is just an empty trait, only implemented for
+/// [`DummyAllocator`](private::DummyAllocator).
 pub trait Allocator: ActualAllocator {}
 #[cfg(feature = "allocator_api")]
 impl<T: ActualAllocator> Allocator for T {}
@@ -33,10 +34,27 @@ impl<T: ActualAllocator> Allocator for T {}
 /// Helper-trait to reduce the amount of required cfg-pragmas.
 ///
 /// When the feature `allocator_api` is active, resolves to an alias-trait for [`core::alloc::Allocator`].
-/// Otherwise, it is just an empty trait, only implemented for [`()`].
-pub trait Allocator {}
+/// Otherwise, it is just an empty trait, only implemented for
+/// [`DummyAllocator`](private::DummyAllocator).
+pub trait Allocator: private::Sealed {}
+
 #[cfg(not(feature = "allocator_api"))]
-impl Allocator for () {}
+/// Private Module to seal the allocator trait.
+mod private {
+    use crate::Allocator;
+    /// Public trait with private Name,
+    /// ensuring [`Allocator`](crate::Allocator) can't be implemented.
+    pub trait Sealed {}
+    /// Public type with private Name.
+    /// Used as [`DefaultAllocator`](crate::DefaultAllocator)
+    /// if the feature `allocator_api` is not enabled.
+    ///
+    /// This type only exists as a placeholder, and will not be constructed.
+    #[allow(missing_copy_implementations, missing_debug_implementations)]
+    pub struct DummyAllocator;
+    impl Sealed for DummyAllocator {}
+    impl Allocator for DummyAllocator {}
+}
 
 #[cfg(feature = "allocator_api")]
 /// The default type for the [`Allocator`]-parameter of an [`AssocList`].
@@ -49,7 +67,7 @@ type DefaultAllocator = Global;
 ///
 /// When the feature `allocator_api` is active, resolves to [`Global`](alloc::alloc::Global).
 /// Otherwise, it resolves to [`()`].
-type DefaultAllocator = ();
+type DefaultAllocator = private::DummyAllocator;
 
 /// An associated list based on a [`Vec`], providing the usual map functionality.
 ///
