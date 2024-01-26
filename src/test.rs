@@ -1,6 +1,6 @@
 //! Unit tests for an [`AssocList`].
 
-use alloc::collections::BTreeMap;
+use alloc::collections::{BTreeMap, BTreeSet};
 
 #[cfg(feature = "allocator_api")]
 use core::{
@@ -135,27 +135,91 @@ fn with_capacity_in() {
 
 #[test]
 fn keys() {
-    todo!()
+    const CAPACITY: usize = 5;
+    let mut assoc_list: AssocList<i8, i8> = AssocList::with_capacity(CAPACITY);
+    for i in 0..i8::try_from(CAPACITY).expect("small test number") {
+        let previous = assoc_list.insert(-i, i);
+        assert!(previous.is_none());
+    }
+    assert!(assoc_list.keys().copied().all(i8::is_negative));
 }
 
 #[test]
 fn into_keys() {
-    todo!()
+    const CAPACITY: usize = 17;
+    let mut assoc_list: AssocList<i8, i8> = AssocList::with_capacity(CAPACITY);
+    for i in 0..i8::try_from(CAPACITY).expect("small test number") {
+        let previous = assoc_list.insert(i, -i);
+        assert!(previous.is_none());
+    }
+    assert!(assoc_list.into_keys().all(i8::is_positive));
 }
 
 #[test]
 fn values() {
-    todo!()
+    const CAPACITY: usize = 62;
+    let capacity_i16 = i16::try_from(CAPACITY).expect("small test number");
+    let mut assoc_list = AssocList::with_capacity(CAPACITY);
+    let mut reference_map = BTreeMap::new();
+    for i in (-capacity_i16..capacity_i16).rev() {
+        #[allow(clippy::integer_division)]
+        let key = i % (capacity_i16 / 7);
+        let value = i.leading_ones();
+        // there might be duplicate values
+        let _ = reference_map.insert(key, value);
+        let _ = assoc_list.insert(key, value);
+    }
+    let expected_values: BTreeSet<_> = reference_map.values().copied().collect();
+    let actual_values: BTreeSet<_> = assoc_list.values().copied().collect();
+    assert_eq!(actual_values, expected_values);
 }
 
 #[test]
 fn values_mut() {
-    todo!()
+    const CAPACITY: usize = 62;
+    let capacity_i16 = i16::try_from(CAPACITY).expect("small test number");
+    let mut assoc_list = AssocList::with_capacity(CAPACITY);
+    let mut reference_map = BTreeMap::new();
+    for i in (-capacity_i16..capacity_i16).rev() {
+        #[allow(clippy::integer_division)]
+        let key = i % (capacity_i16 / 4);
+        let value = i.trailing_zeros();
+        // there might be duplicate values
+        let _ = reference_map.insert(key, value);
+        let _ = assoc_list.insert(key, value);
+    }
+    let expected_values: BTreeSet<_> = reference_map.values_mut().map(|key| &*key).collect();
+    let actual_values: BTreeSet<_> = assoc_list.values_mut().map(|key| &*key).collect();
+    assert_eq!(
+        actual_values, expected_values,
+        "values_mut returns (mutable) references to the values"
+    );
+
+    let new_value = 3938;
+    assoc_list.values_mut().for_each(|value| *value = new_value);
+    assert!(
+        assoc_list.values().all(|value| *value == new_value),
+        "values_mut elements can influence the values in the AssocList"
+    );
 }
 
 #[test]
 fn into_values() {
-    todo!()
+    const CAPACITY: usize = 62;
+    let capacity_i16 = i16::try_from(CAPACITY).expect("small test number");
+    let mut assoc_list = AssocList::with_capacity(CAPACITY);
+    let mut reference_map = BTreeMap::new();
+    for i in (-capacity_i16..capacity_i16).rev() {
+        #[allow(clippy::integer_division)]
+        let key = i % (capacity_i16 / 9);
+        let value = (i * 17) % 205;
+        // there might be duplicate values
+        let _ = reference_map.insert(key, value);
+        let _ = assoc_list.insert(key, value);
+    }
+    let expected_values: BTreeSet<_> = reference_map.into_values().collect();
+    let actual_values: BTreeSet<_> = assoc_list.into_values().collect();
+    assert_eq!(actual_values, expected_values);
 }
 
 #[test]
