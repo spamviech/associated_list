@@ -11,12 +11,13 @@ use core::{
 
 use alloc::{
     collections::{BTreeMap, BTreeSet},
+    string::String,
     vec::Vec,
 };
 
 use quickcheck_macros::quickcheck;
 
-use crate::{assoc_list, Allocator, AssocList};
+use crate::{assoc_list, Allocator, AssocList, Entry};
 
 // O(n*log(n))
 fn unique_ord_keys<K: Ord, V, A: Allocator>(assoc_list: AssocList<K, V, A>) -> bool {
@@ -49,7 +50,7 @@ fn with_capacity() {
     const CAPACITY: usize = 23_571;
     let assoc_list: AssocList<u16, f32> = AssocList::with_capacity(CAPACITY);
     assert!(assoc_list.vec.is_empty());
-    assert_eq!(assoc_list.vec.capacity(), CAPACITY);
+    assert!(assoc_list.vec.capacity() >= CAPACITY);
     assert!(unique_ord_keys(assoc_list));
 }
 
@@ -398,11 +399,14 @@ fn len(input: Vec<(f32, i8)>) {
     let input_len = input.len();
     let assoc_list: AssocList<_, _> = input.into_iter().collect();
     assert!(assoc_list.len() <= input_len);
+    assert_eq!(assoc_list.len(), assoc_list.vec.len());
 }
 
-#[test]
-fn capacity() {
-    todo!()
+#[quickcheck]
+fn capacity(input: Vec<(f64, String)>) {
+    let assoc_list: AssocList<_, _> = input.into_iter().collect();
+    assert!(assoc_list.len() <= assoc_list.capacity());
+    assert_eq!(assoc_list.capacity(), assoc_list.vec.capacity());
 }
 
 #[test]
@@ -430,7 +434,23 @@ fn clear(input: Vec<(f32, i8)>) {
 
 #[test]
 fn entry() {
-    todo!()
+    let mut assoc_list = assoc_list!(("occupied", "value"), ("another", "another value"));
+
+    let occupied_entry = assoc_list.entry("occupied");
+    assert_eq!(*occupied_entry.key(), "occupied");
+    assert!(matches!(occupied_entry, Entry::Occupied(_occupied_entry)));
+
+    let another_entry = assoc_list.entry("another");
+    assert_eq!(*another_entry.key(), "another");
+    assert_eq!(*another_entry.or_insert("some other value"), "another value");
+
+    let vacant_entry = assoc_list.entry("vacant");
+    assert_eq!(*vacant_entry.key(), "vacant");
+    assert!(matches!(vacant_entry, Entry::Vacant(_vacant_entry)));
+
+    let another_vacant_entry = assoc_list.entry("another vacant");
+    assert_eq!(*another_vacant_entry.key(), "another vacant");
+    assert_eq!(*another_vacant_entry.or_insert("yet another value"), "yet another value");
 }
 
 #[test]

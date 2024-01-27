@@ -107,6 +107,9 @@ impl<K, V> AssocList<K, V> {
     }
 
     /// Create a new [`AssocList`] with at least the specified `capacity`.
+    ///
+    /// ## Panics
+    /// Panics if the new capacity exceeds [`isize::MAX`] bytes.
     #[must_use]
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self {
@@ -568,7 +571,8 @@ impl<'a, K, V, A: Allocator> IntoIterator for &'a AssocList<K, V, A> {
     }
 }
 
-/// Draining Iterator for an [`AssocList`]. It is created by the [`drain`](AssocList::drain)-method.
+/// Draining Iterator for an [`AssocList`].
+/// It is created by the [`drain`](AssocList::drain)-method.
 #[derive(Debug)]
 #[must_use]
 pub struct Drain<'a, K, V, A: Allocator> {
@@ -591,7 +595,8 @@ impl<K, V, A: Allocator> Iterator for Drain<'_, K, V, A> {
     }
 }
 
-/// Mutable Iterator for an [`AssocList`]. It is created by the [`iter_mut`](AssocList::iter_mut)-method.
+/// Mutable Iterator for an [`AssocList`].
+/// It is created by the [`iter_mut`](AssocList::iter_mut)-method.
 #[derive(Debug)]
 #[must_use]
 pub struct IterMut<'a, K, V>(slice::IterMut<'a, (K, V)>);
@@ -625,7 +630,8 @@ impl<K: PartialEq, V> FromIterator<(K, V)> for AssocList<K, V> {
     }
 }
 
-/// Iterator for the keys of an [`AssocList`]. It is created by the [`keys`](AssocList::keys)-method.
+/// Iterator for the keys of an [`AssocList`].
+/// It is created by the [`keys`](AssocList::keys)-method.
 #[derive(Debug)]
 #[must_use]
 pub struct Keys<'a, K, V>(Iter<'a, (K, V)>);
@@ -639,7 +645,8 @@ impl<'a, K, V> Iterator for Keys<'a, K, V> {
     }
 }
 
-/// Consuming Iterator for the keys of an [`AssocList`]. It is created by the [`into_keys`](AssocList::into_keys)-method.
+/// Consuming Iterator for the keys of an [`AssocList`].
+/// It is created by the [`into_keys`](AssocList::into_keys)-method.
 #[derive(Debug)]
 #[must_use]
 pub struct IntoKeys<K, V, A: Allocator> {
@@ -662,7 +669,8 @@ impl<K, V, A: Allocator> Iterator for IntoKeys<K, V, A> {
     }
 }
 
-/// Iterator for the values of an [`AssocList`]. It is created by the [`values`](AssocList::values)-method.
+/// Iterator for the values of an [`AssocList`].
+/// It is created by the [`values`](AssocList::values)-method.
 #[derive(Debug)]
 #[must_use]
 pub struct Values<'a, K, V>(Iter<'a, (K, V)>);
@@ -676,7 +684,8 @@ impl<'a, K, V> Iterator for Values<'a, K, V> {
     }
 }
 
-/// Iterator for the mutable values of an [`AssocList`]. It is created by the [`values_mut`](AssocList::values_mut)-method.
+/// Iterator for the mutable values of an [`AssocList`].
+/// It is created by the [`values_mut`](AssocList::values_mut)-method.
 #[derive(Debug)]
 #[must_use]
 pub struct ValuesMut<'a, K, V>(slice::IterMut<'a, (K, V)>);
@@ -690,7 +699,8 @@ impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
     }
 }
 
-/// Consuming Iterator for the values of an [`AssocList`]. It is created by the [`into_values`](AssocList::into_values)-method.
+/// Consuming Iterator for the values of an [`AssocList`].
+/// It is created by the [`into_values`](AssocList::into_values)-method.
 #[derive(Debug)]
 #[must_use]
 pub struct IntoValues<K, V, A: Allocator> {
