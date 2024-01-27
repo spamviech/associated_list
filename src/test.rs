@@ -1,10 +1,5 @@
 //! Unit tests for an [`AssocList`].
 
-use alloc::{
-    collections::{BTreeMap, BTreeSet},
-    vec::Vec,
-};
-
 #[cfg(feature = "allocator_api")]
 use core::{
     alloc::{AllocError, Allocator as ActualAllocator, Layout},
@@ -13,6 +8,13 @@ use core::{
     ptr::NonNull,
     sync::atomic::{AtomicBool, Ordering},
 };
+
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    vec::Vec,
+};
+
+use quickcheck_macros::quickcheck;
 
 use crate::{assoc_list, Allocator, AssocList};
 
@@ -303,9 +305,18 @@ fn into_values() {
     assert_eq!(actual_values, expected_values);
 }
 
-#[test]
-fn iter() {
-    todo!()
+#[quickcheck]
+fn iter(input: Vec<(u64, i32)>) {
+    let assoc_list: AssocList<_, _> = input.iter().copied().collect();
+    let reference_map: BTreeMap<_, _> = input.into_iter().collect();
+    // convert from &(K,V) to (&K, &V)
+    #[allow(clippy::map_identity)]
+    let mut actual_values: Vec<_> = assoc_list.iter().map(|(key, value)| (key, value)).collect();
+    let mut expected_values: Vec<_> = reference_map.iter().collect();
+
+    actual_values.sort_by_key(|(key, _value)| *key);
+    expected_values.sort_by_key(|(key, _value)| *key);
+    assert_eq!(actual_values, expected_values);
 }
 
 #[test]

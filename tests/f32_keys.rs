@@ -1,6 +1,7 @@
 //! Testing [`f32`] as an example for keys not implementing [`Ord`] and [`Hash`].
 
 // integration tests
+#![allow(unused_crate_dependencies)]
 #![allow(clippy::tests_outside_test_module)]
 
 use associated_list::AssocList;
