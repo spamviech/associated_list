@@ -393,19 +393,34 @@ fn into_iter_mut(input: Vec<(i64, u32)>) {
     );
 }
 
-#[test]
-fn len() {
-    todo!()
+#[quickcheck]
+fn len(input: Vec<(f32, i8)>) {
+    let input_len = input.len();
+    let assoc_list: AssocList<_, _> = input.into_iter().collect();
+    assert!(assoc_list.len() <= input_len);
 }
 
 #[test]
 fn is_empty() {
-    todo!()
+    let mut assoc_list = AssocList::new();
+    assert!(assoc_list.is_empty(), "new AssocList is empty");
+
+    let _ = assoc_list.insert((), ());
+    assert!(!assoc_list.is_empty(), "after inserting an element, the AssocList is not empty");
+
+    let _ = assoc_list.remove(&());
+    assert!(assoc_list.is_empty(), "after removing the only element, the AssocList is empty");
 }
 
-#[test]
-fn clear() {
-    todo!()
+#[quickcheck]
+fn clear(input: Vec<(f32, i8)>) {
+    let mut assoc_list: AssocList<_, _> = input.into_iter().collect();
+    // clear removes all elements
+    assoc_list.clear();
+    assert!(assoc_list.is_empty());
+    // a second clear works and leaves the AssocList empty
+    assoc_list.clear();
+    assert!(assoc_list.is_empty());
 }
 
 #[test]
