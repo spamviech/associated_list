@@ -13,6 +13,7 @@
   - `try_reserve_exact`
   - `shrink`
   - `shrink_to_fit`.
+- Introduce modules, to improve code-structure.
 - Add unit tests.
 
 ## v0.1.0

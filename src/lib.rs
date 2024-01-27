@@ -3,74 +3,31 @@
 #![cfg_attr(feature = "doc_auto_cfg", feature(doc_auto_cfg))]
 #![cfg_attr(feature = "allocator_api", feature(allocator_api))]
 
-#[cfg(feature = "allocator_api")]
-use core::alloc::Allocator as ActualAllocator;
 use core::{
     borrow::Borrow,
     marker::PhantomData,
     mem,
     ops::{Index, IndexMut},
-    slice::{self, Iter},
+    slice::Iter,
 };
 
 extern crate alloc;
-#[cfg(feature = "allocator_api")]
-use alloc::alloc::Global;
 use alloc::{
     collections::TryReserveError,
-    vec::{self, IntoIter, Vec},
+    vec::{IntoIter, Vec},
 };
 
+pub mod allocator;
+pub mod entry;
+pub mod iter;
 #[cfg(test)]
 mod test;
 
-#[cfg(feature = "allocator_api")]
-/// Helper-trait to reduce the amount of required cfg-pragmas.
-///
-/// When the feature `allocator_api` is active, resolves to an alias-trait for [`core::alloc::Allocator`].
-/// Otherwise, it is just an empty trait, only implemented for
-/// [`DummyAllocator`](private::DummyAllocator).
-pub trait Allocator: ActualAllocator {}
-#[cfg(feature = "allocator_api")]
-impl<T: ActualAllocator> Allocator for T {}
-#[cfg(not(feature = "allocator_api"))]
-/// Helper-trait to reduce the amount of required cfg-pragmas.
-///
-/// When the feature `allocator_api` is active, resolves to an alias-trait for [`core::alloc::Allocator`].
-/// Otherwise, it is just an empty trait, only implemented for
-/// [`DummyAllocator`](private::DummyAllocator).
-pub trait Allocator: private::Sealed {}
-
-#[cfg(not(feature = "allocator_api"))]
-/// Private Module to seal the allocator trait.
-mod private {
-    use crate::Allocator;
-    /// Public trait with private Name,
-    /// ensuring [`Allocator`](crate::Allocator) can't be implemented.
-    pub trait Sealed {}
-    /// Public type with private Name.
-    /// Used as [`DefaultAllocator`](crate::DefaultAllocator)
-    /// if the feature `allocator_api` is not enabled.
-    ///
-    /// This type only exists as a placeholder, and will not be constructed.
-    #[allow(missing_copy_implementations, missing_debug_implementations)]
-    pub struct DummyAllocator;
-    impl Sealed for DummyAllocator {}
-    impl Allocator for DummyAllocator {}
-}
-
-#[cfg(feature = "allocator_api")]
-/// The default type for the [`Allocator`]-parameter of an [`AssocList`].
-///
-/// When the feature `allocator_api` is active, resolves to [`Global`](alloc::alloc::Global).
-/// Otherwise, it resolves to [`()`].
-type DefaultAllocator = Global;
-#[cfg(not(feature = "allocator_api"))]
-/// The default type for the [`Allocator`]-parameter of an [`AssocList`].
-///
-/// When the feature `allocator_api` is active, resolves to [`Global`](alloc::alloc::Global).
-/// Otherwise, it resolves to [`()`].
-type DefaultAllocator = private::DummyAllocator;
+use self::{
+    allocator::{Allocator, DefaultAllocator},
+    entry::{Entry, OccupiedEntry, VacantEntry},
+    iter::{Drain, IntoKeys, IntoValues, IterMut, Keys, Values, ValuesMut},
+};
 
 /// An associated list based on a [`Vec`], providing the usual map functionality.
 ///
@@ -571,45 +528,6 @@ impl<'a, K, V, A: Allocator> IntoIterator for &'a AssocList<K, V, A> {
     }
 }
 
-/// Draining Iterator for an [`AssocList`].
-/// It is created by the [`drain`](AssocList::drain)-method.
-#[derive(Debug)]
-#[must_use]
-pub struct Drain<'a, K, V, A: Allocator> {
-    #[cfg(feature = "allocator_api")]
-    /// The Iterator from a [`Vec`] the implementation is based on.
-    iter: vec::Drain<'a, (K, V), A>,
-    #[cfg(not(feature = "allocator_api"))]
-    /// The Iterator from a [`Vec`] the implementation is based on.
-    iter: vec::Drain<'a, (K, V)>,
-    /// PhantomData
-    phantom: PhantomData<A>,
-}
-
-impl<K, V, A: Allocator> Iterator for Drain<'_, K, V, A> {
-    type Item = (K, V);
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
-    }
-}
-
-/// Mutable Iterator for an [`AssocList`].
-/// It is created by the [`iter_mut`](AssocList::iter_mut)-method.
-#[derive(Debug)]
-#[must_use]
-pub struct IterMut<'a, K, V>(slice::IterMut<'a, (K, V)>);
-
-impl<'a, K, V> Iterator for IterMut<'a, K, V> {
-    type Item = (&'a K, &'a mut V);
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|(key, value)| (&*key, value))
-    }
-}
-
 impl<'a, K, V, A: Allocator> IntoIterator for &'a mut AssocList<K, V, A> {
     type Item = (&'a K, &'a mut V);
 
@@ -627,256 +545,5 @@ impl<K: PartialEq, V> FromIterator<(K, V)> for AssocList<K, V> {
         let mut assoc_list = AssocList::new();
         assoc_list.extend(iter);
         assoc_list
-    }
-}
-
-/// Iterator for the keys of an [`AssocList`].
-/// It is created by the [`keys`](AssocList::keys)-method.
-#[derive(Debug)]
-#[must_use]
-pub struct Keys<'a, K, V>(Iter<'a, (K, V)>);
-
-impl<'a, K, V> Iterator for Keys<'a, K, V> {
-    type Item = &'a K;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|(key, _value)| key)
-    }
-}
-
-/// Consuming Iterator for the keys of an [`AssocList`].
-/// It is created by the [`into_keys`](AssocList::into_keys)-method.
-#[derive(Debug)]
-#[must_use]
-pub struct IntoKeys<K, V, A: Allocator> {
-    #[cfg(feature = "allocator_api")]
-    /// The Iterator from a [`Vec`] the implementation is based on.
-    iter: IntoIter<(K, V), A>,
-    #[cfg(not(feature = "allocator_api"))]
-    /// The Iterator from a [`Vec`] the implementation is based on.
-    iter: IntoIter<(K, V)>,
-    /// PhantomData
-    phantom: PhantomData<A>,
-}
-
-impl<K, V, A: Allocator> Iterator for IntoKeys<K, V, A> {
-    type Item = K;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(|(key, _value)| key)
-    }
-}
-
-/// Iterator for the values of an [`AssocList`].
-/// It is created by the [`values`](AssocList::values)-method.
-#[derive(Debug)]
-#[must_use]
-pub struct Values<'a, K, V>(Iter<'a, (K, V)>);
-
-impl<'a, K, V> Iterator for Values<'a, K, V> {
-    type Item = &'a V;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|(_key, value)| value)
-    }
-}
-
-/// Iterator for the mutable values of an [`AssocList`].
-/// It is created by the [`values_mut`](AssocList::values_mut)-method.
-#[derive(Debug)]
-#[must_use]
-pub struct ValuesMut<'a, K, V>(slice::IterMut<'a, (K, V)>);
-
-impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
-    type Item = &'a mut V;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|(_key, value)| value)
-    }
-}
-
-/// Consuming Iterator for the values of an [`AssocList`].
-/// It is created by the [`into_values`](AssocList::into_values)-method.
-#[derive(Debug)]
-#[must_use]
-pub struct IntoValues<K, V, A: Allocator> {
-    #[cfg(feature = "allocator_api")]
-    /// The Iterator from a [`Vec`] the implementation is based on.
-    iter: IntoIter<(K, V), A>,
-    #[cfg(not(feature = "allocator_api"))]
-    /// The Iterator from a [`Vec`] the implementation is based on.
-    iter: IntoIter<(K, V)>,
-    /// PhantomData
-    phantom: PhantomData<A>,
-}
-
-impl<K, V, A: Allocator> Iterator for IntoValues<K, V, A> {
-    type Item = V;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(|(_key, value)| value)
-    }
-}
-
-/// A view into an [`AssocList`] for a single element.
-/// It can be either present or missing.
-#[derive(Debug)]
-#[must_use]
-pub enum Entry<'a, K, V, A: Allocator = DefaultAllocator> {
-    /// The [`AssocList`] contains a value for the [`key`](Entry::key).
-    Occupied(OccupiedEntry<'a, K, V, A>),
-    /// The [`AssocList`] doesn't contain a value for the [`key`](Entry::key).
-    Vacant(VacantEntry<'a, K, V, A>),
-}
-
-impl<'a, K, V, A: Allocator> Entry<'a, K, V, A> {
-    /// Return the `key` used to create the [`Entry`].
-    #[must_use]
-    #[inline]
-    pub fn key(&self) -> &K {
-        match self {
-            Entry::Occupied(occupied) => occupied.key(),
-            Entry::Vacant(vacant) => vacant.key(),
-        }
-    }
-
-    /// Ensures a value is in the entry by inserting the default if empty,
-    /// and returns a mutable reference to the value in the entry.
-    #[must_use]
-    #[inline]
-    pub fn or_insert(self, default: V) -> &'a mut V {
-        match self {
-            Entry::Occupied(occupied) => occupied.get_mut(),
-            Entry::Vacant(vacant) => vacant.insert(default),
-        }
-    }
-}
-
-/// A view into an occupied entry in an [`AssocList`]. It is part of the [`Entry`] enum.
-#[derive(Debug)]
-#[must_use]
-pub struct OccupiedEntry<'a, K, V, A: Allocator = DefaultAllocator> {
-    #[cfg(feature = "allocator_api")]
-    /// The vector of the [`AssocList`].
-    vec: &'a mut Vec<(K, V), A>,
-    #[cfg(not(feature = "allocator_api"))]
-    /// The vector of the [`AssocList`].
-    vec: &'a mut Vec<(K, V)>,
-    /// PhantomData
-    phantom: PhantomData<A>,
-    /// The index of the element.
-    index: usize,
-    /// The key used to create the [`Entry`].
-    key: K,
-}
-
-impl<'a, K, V, A: Allocator> OccupiedEntry<'a, K, V, A> {
-    /// Return the `key` used to create the [`Entry`].
-    #[must_use]
-    #[inline]
-    pub fn key(&self) -> &K {
-        &self.key
-    }
-
-    /// Get a reference to the Element contained in the [`AssocList`].
-    ///
-    /// ## Panics
-    ///
-    /// Programming error: if the index of the [`Entry`] is out-of-bounds.
-    #[must_use]
-    #[inline]
-    pub fn get(self) -> &'a V {
-        let (_key, value) = self.vec.get(self.index).expect("Index out of bounds!");
-        value
-    }
-
-    /// Get a mutable reference to the Element contained in the [`AssocList`].
-    ///
-    /// ## Panics
-    ///
-    /// Programming error: if the index of the [`Entry`] is out-of-bounds.
-    #[must_use]
-    #[inline]
-    pub fn get_mut(self) -> &'a mut V {
-        let (_key, value) = self.vec.get_mut(self.index).expect("Index out of bounds!");
-        value
-    }
-
-    /// Remove the element from the [`AssocList`], returning the key-value pair.
-    ///
-    /// ## Panics
-    ///
-    /// Programming error: if the index of the [`Entry`] is out-of-bounds.
-    #[must_use]
-    #[inline]
-    pub fn remove_entry(self) -> (K, V) {
-        self.vec.swap_remove(self.index)
-    }
-
-    /// Remove the element from the [`AssocList`], returning the value.
-    ///
-    /// ## Panics
-    ///
-    /// Programming error: if the index of the [`Entry`] is out-of-bounds.
-    #[must_use]
-    #[inline]
-    pub fn remove(self) -> V {
-        let (_key, value) = self.vec.swap_remove(self.index);
-        value
-    }
-
-    /// Replace the element from the [`AssocList`], returning the previous value.
-    ///
-    /// ## Panics
-    ///
-    /// Programming error: if the index of the [`Entry`] is out-of-bounds.
-    #[must_use]
-    #[inline]
-    pub fn insert(&mut self, neuer_value: V) -> V {
-        let (_key, value) = self.vec.get_mut(self.index).expect("Index out of bounds!");
-        mem::replace(value, neuer_value)
-    }
-}
-
-/// A view into a vacant entry in an [`AssocList`]. It is part of the [`Entry`] enum.
-#[derive(Debug)]
-#[must_use]
-pub struct VacantEntry<'a, K, V, A: Allocator = DefaultAllocator> {
-    #[cfg(feature = "allocator_api")]
-    /// The vector of the [`AssocList`].
-    vec: &'a mut Vec<(K, V), A>,
-    #[cfg(not(feature = "allocator_api"))]
-    /// The vector of the [`AssocList`].
-    vec: &'a mut Vec<(K, V)>,
-    /// PhantomData
-    phantom: PhantomData<A>,
-    /// The key used to create the [`Entry`].
-    key: K,
-}
-
-impl<'a, K, V, A: Allocator> VacantEntry<'a, K, V, A> {
-    /// Return the `key` used to create the [`Entry`].
-    #[must_use]
-    #[inline]
-    pub fn key(&self) -> &K {
-        &self.key
-    }
-
-    /// Add a new element associated with the [`key`](VacantEntry::key).
-    ///
-    /// ## Panics
-    ///
-    /// Programming error: if [`Vec::last_mut`] returns [`None`] directly after a [`Vec::push`].
-    #[must_use]
-    #[inline]
-    pub fn insert(self, value: V) -> &'a mut V {
-        self.vec.push((self.key, value));
-        let (_key, inserted_value) = self.vec.last_mut().expect("Element has just been added!");
-        inserted_value
     }
 }
