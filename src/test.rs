@@ -1,6 +1,9 @@
 //! Unit tests for an [`AssocList`].
 
-use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::{
+    collections::{BTreeMap, BTreeSet},
+    vec::Vec,
+};
 
 #[cfg(feature = "allocator_api")]
 use core::{
@@ -11,7 +14,7 @@ use core::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use crate::{Allocator, AssocList};
+use crate::{assoc_list, Allocator, AssocList};
 
 // O(n*log(n))
 fn unique_ord_keys<K: Ord, V, A: Allocator>(assoc_list: AssocList<K, V, A>) -> bool {
@@ -22,9 +25,9 @@ fn unique_ord_keys<K: Ord, V, A: Allocator>(assoc_list: AssocList<K, V, A>) -> b
 
 #[test]
 fn new() {
-    let assoc_list: AssocList<usize, f64> = AssocList::new();
-    assert!(assoc_list.vec.is_empty());
-    assert!(unique_ord_keys(assoc_list));
+    const ASSOC_LIST: AssocList<usize, f64> = AssocList::new();
+    assert!(ASSOC_LIST.vec.is_empty());
+    assert!(unique_ord_keys(ASSOC_LIST));
 }
 
 #[test]
@@ -41,6 +44,84 @@ fn with_capacity() {
     assert!(assoc_list.vec.is_empty());
     assert_eq!(assoc_list.vec.capacity(), CAPACITY);
     assert!(unique_ord_keys(assoc_list));
+}
+
+#[test]
+fn assoc_list_macro() {
+    macro_rules! test_macro {
+        ($([$($input: tt)*]),* $(,)?) => {$(
+            let reference_map = BTreeMap::from([$($input)*]);
+            let mut reference_map_vec: Vec<(i32, i32)> = reference_map.into_iter().collect();
+            let assoc_list: AssocList<i32, i32> = assoc_list![$($input)*];
+            let mut assoc_list_vec = assoc_list.vec.clone();
+            // check keys are unique
+            assert!(unique_ord_keys(assoc_list));
+            // check the result is identical to a BTreeMap
+            reference_map_vec.sort();
+            assoc_list_vec.sort();
+            assert_eq!(assoc_list_vec, reference_map_vec);
+        )*};
+    }
+
+    test_macro!(
+        [],                                                            // empty
+        [(3, 7), (8, -1), (9, 0), (0, 4)],                             // unique keys
+        [(-3, 7), (-3, -1), (9, 0), (0, 4)],                           // negative keys
+        [(3, 7), (8, -1), (3, 0), (0, 4)],                             // duplicated key
+        [(8, -1), (3, 0), (0, 4), (-8, 1), (8, 2), (0, 1), (-8, 267)], // duplicated & negative keys
+    );
+}
+
+#[test]
+fn from() {
+    macro_rules! test_from {
+        ($([$($input: tt)*]),* $(,)?) => {$(
+            let reference_map = BTreeMap::from([$($input)*]);
+            let mut reference_map_vec: Vec<(i32, i32)> = reference_map.into_iter().collect();
+            let assoc_list: AssocList<i32, i32> = AssocList::from([$($input)*]);
+            let mut assoc_list_vec = assoc_list.vec.clone();
+            // check keys are unique
+            assert!(unique_ord_keys(assoc_list));
+            // check the result is identical to a BTreeMap
+            reference_map_vec.sort();
+            assoc_list_vec.sort();
+            assert_eq!(assoc_list_vec, reference_map_vec);
+        )*};
+    }
+
+    test_from!(
+        [],                                                            // empty
+        [(3, 7), (8, -1), (9, 0), (0, 4)],                             // unique keys
+        [(-3, 7), (-3, -1), (9, 0), (0, 4)],                           // negative keys
+        [(3, 7), (8, -1), (3, 0), (0, 4)],                             // duplicated key
+        [(8, -1), (3, 0), (0, 4), (-8, 1), (8, 2), (0, 1), (-8, 267)], // duplicated & negative keys
+    );
+}
+
+#[test]
+fn from_iterator() {
+    macro_rules! test_collect {
+        ($([$($input: tt)*]),* $(,)?) => {$(
+            let reference_map = BTreeMap::from([$($input)*]);
+            let mut reference_map_vec: Vec<(i32, i32)> = reference_map.into_iter().collect();
+            let assoc_list: AssocList<i32, i32> = [$($input)*].into_iter().collect();
+            let mut assoc_list_vec = assoc_list.vec.clone();
+            // check keys are unique
+            assert!(unique_ord_keys(assoc_list));
+            // check the result is identical to a BTreeMap
+            reference_map_vec.sort();
+            assoc_list_vec.sort();
+            assert_eq!(assoc_list_vec, reference_map_vec);
+        )*};
+    }
+
+    test_collect!(
+        [],                                                            // empty
+        [(3, 7), (8, -1), (9, 0), (0, 4)],                             // unique keys
+        [(-3, 7), (-3, -1), (9, 0), (0, 4)],                           // negative keys
+        [(3, 7), (8, -1), (3, 0), (0, 4)],                             // duplicated key
+        [(8, -1), (3, 0), (0, 4), (-8, 1), (8, 2), (0, 1), (-8, 267)], // duplicated & negative keys
+    );
 }
 
 #[cfg(feature = "allocator_api")]
@@ -238,6 +319,21 @@ fn drain() {
 }
 
 #[test]
+fn into_iter() {
+    todo!()
+}
+
+#[test]
+fn into_iter_ref() {
+    todo!()
+}
+
+#[test]
+fn into_iter_mut() {
+    todo!()
+}
+
+#[test]
 fn len() {
     todo!()
 }
@@ -303,6 +399,16 @@ fn remove_entry() {
 }
 
 #[test]
+fn shrink_to() {
+    todo!()
+}
+
+#[test]
+fn shrink_to_fit() {
+    todo!()
+}
+
+#[test]
 fn partial_eq() {
     todo!()
 }
@@ -324,20 +430,5 @@ fn index() {
 
 #[test]
 fn index_mut() {
-    todo!()
-}
-
-#[test]
-fn into_iter() {
-    todo!()
-}
-
-#[test]
-fn into_iter_ref() {
-    todo!()
-}
-
-#[test]
-fn into_iter_mut() {
     todo!()
 }
