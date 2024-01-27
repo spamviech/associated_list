@@ -401,6 +401,11 @@ fn len(input: Vec<(f32, i8)>) {
 }
 
 #[test]
+fn capacity() {
+    todo!()
+}
+
+#[test]
 fn is_empty() {
     let mut assoc_list = AssocList::new();
     assert!(assoc_list.is_empty(), "new AssocList is empty");
@@ -470,6 +475,26 @@ fn remove() {
 
 #[test]
 fn remove_entry() {
+    todo!()
+}
+
+#[test]
+fn reserve() {
+    todo!()
+}
+
+#[test]
+fn reserve_exact() {
+    todo!()
+}
+
+#[test]
+fn try_reserve() {
+    todo!()
+}
+
+#[test]
+fn try_reserve_exact() {
     todo!()
 }
 
