@@ -113,6 +113,8 @@ impl<K, V> AssocList<K, V> {
 
 /// Create a new [`AssocList`], filled with the arguments.
 ///
+/// The [capacity](AssocList::with_capacity) will match the number of passed key-value pairs (see [`count`]).
+///
 /// When there are duplicate keys, the resulting [`AssocList`] will contain the later `value`.
 #[macro_export]
 macro_rules! assoc_list {
@@ -361,6 +363,25 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
             }
         }
         None
+    }
+
+    /// Shrinks the capacity of the underlying [`Vec`] with a lower bound.
+    ///
+    /// The capacity will remain at least as large as both the length and the supplied value.
+    ///
+    /// If the current capacity is less than the lower limit, this is a no-op.
+    #[inline]
+    pub fn shrink_to(&mut self, min_capacity: usize) {
+        self.vec.shrink_to(min_capacity);
+    }
+
+    ///Shrinks the capacity of the underlying [`Vec`] as much as possible.
+    ///
+    /// It will drop down as close as possible to the length but the allocator may still inform
+    /// the vector that there is space for a few more elements.
+    #[inline]
+    pub fn shrink_to_fit(&mut self) {
+        self.vec.shrink_to_fit();
     }
 }
 

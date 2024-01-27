@@ -5,6 +5,7 @@
 - Seal the `Allocator`-trait if the feature "allocator_api" is not enabled.
     Additionally, change the `DefaultAllocator` to a new unnameable type.
 - Add `assoc_list!`-macro to create an `AssocList` with elements.
+- New methods `shrink` and `shrink_to_fit`.
 - Add unit tests.
 
 ## v0.1.0
