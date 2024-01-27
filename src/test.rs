@@ -226,7 +226,7 @@ fn keys() {
     const CAPACITY: usize = 5;
     let mut assoc_list: AssocList<i8, i8> = AssocList::with_capacity(CAPACITY);
     for i in 0..i8::try_from(CAPACITY).expect("small test number") {
-        let previous = assoc_list.insert(-i, i);
+        let previous = assoc_list.insert(-i - 1, i);
         assert!(previous.is_none());
     }
     assert!(assoc_list.keys().copied().all(i8::is_negative));
@@ -237,7 +237,7 @@ fn into_keys() {
     const CAPACITY: usize = 17;
     let mut assoc_list: AssocList<i8, i8> = AssocList::with_capacity(CAPACITY);
     for i in 0..i8::try_from(CAPACITY).expect("small test number") {
-        let previous = assoc_list.insert(i, -i);
+        let previous = assoc_list.insert(i + 1, -i);
         assert!(previous.is_none());
     }
     assert!(assoc_list.into_keys().all(i8::is_positive));
