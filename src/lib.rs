@@ -111,6 +111,32 @@ impl<K, V> AssocList<K, V> {
     }
 }
 
+/// Create a new [`AssocList`], filled with the arguments.
+///
+/// When there are duplicate keys, the resulting [`AssocList`] will contain the later `value`.
+#[macro_export]
+macro_rules! assoc_list {
+    ($(($key: expr, $value: expr)),* $(,)?) => {{
+        #[allow(unused_mut)]
+        let mut assoc_list = AssocList::with_capacity($crate::count!($($key),*));
+        $(
+            let _ = assoc_list.insert($key, $value);
+        )*
+        assoc_list
+    }};
+}
+
+/// Helper-macro for [`assoc_list!`]: return the number of passed elements.
+#[macro_export]
+macro_rules! count {
+    ($(,)?) => {
+        0
+    };
+    ($head: expr $(, $tail: expr)* $(,)?) => {{
+        1 + $crate::count!($($tail),*)
+    }};
+}
+
 #[cfg(feature = "allocator_api")]
 impl<K, V, A: Allocator> AssocList<K, V, A> {
     /// Create a new [`AssocList`] with the provided allocator.
