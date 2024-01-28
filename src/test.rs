@@ -1,5 +1,7 @@
 //! Unit tests for an [`AssocList`].
 
+use core::ops::IndexMut;
+
 use alloc::{
     collections::BTreeMap,
     string::{String, ToString},
@@ -203,9 +205,16 @@ fn get(reference_map: BTreeMap<String, f64>) {
     for (key, value) in &reference_map {
         if value.is_nan() {
             // NaN-values are not equal to itself!
-            continue;
+            assert_eq!(
+                assoc_list
+                    .get_key_value(&key)
+                    .map(|(assoc_key, assoc_value)| (assoc_key, assoc_value.is_nan())),
+                Some((&key, true)),
+                "{key}: {value}"
+            );
+        } else {
+            assert_eq!(assoc_list.get(&key), Some(&value), "{key}: {value}");
         }
-        assert_eq!(assoc_list.get(&key), Some(&value), "{key}: {value}");
     }
     let mut unknown_key = String::new();
     while assoc_list.contains_key(&unknown_key) {
@@ -222,9 +231,16 @@ fn get_key_value(reference_map: BTreeMap<String, f64>) {
     for (key, value) in &reference_map {
         if value.is_nan() {
             // NaN-values are not equal to itself!
-            continue;
+            assert_eq!(
+                assoc_list
+                    .get_key_value(&key)
+                    .map(|(assoc_key, assoc_value)| (assoc_key, assoc_value.is_nan())),
+                Some((&key, true)),
+                "{key}: {value}"
+            );
+        } else {
+            assert_eq!(assoc_list.get_key_value(&key), Some((&key, &value)), "{key}: {value}");
         }
-        assert_eq!(assoc_list.get_key_value(&key), Some((&key, &value)), "{key}: {value}");
     }
     let mut unknown_key = String::new();
     while assoc_list.contains_key(&unknown_key) {
@@ -247,8 +263,10 @@ fn get_mut(reference_map: BTreeMap<String, f32>) {
         };
         // exact comparison is desired
         #[allow(clippy::float_cmp)]
-        if !value.is_nan() {
+        if value.is_nan() {
             // NaN-values are not equal to itself!
+            assert!(mut_value.is_nan(), "{key}: {value}");
+        } else {
             assert_eq!(*mut_value, value, "{key}: {value}");
         }
         *mut_value = &NEW_VALUE;
@@ -430,22 +448,72 @@ fn partial_eq() {
     assert_ne!(nan_value_list, nan_value_list);
 }
 
-#[test]
-fn extend() {
-    todo!()
+#[quickcheck]
+fn extend(mut reference_map: BTreeMap<u32, String>, extension: Vec<(u32, String)>) {
+    let mut assoc_list: AssocList<_, _> =
+        reference_map.iter().map(|(key, value)| (*key, value.clone())).collect();
+    assoc_list.extend(extension.clone());
+    reference_map.extend(extension);
+    let result_map: BTreeMap<_, _> = assoc_list.into_iter().collect();
+    assert_eq!(result_map, reference_map);
 }
 
-#[test]
-fn extend_ref() {
-    todo!()
+#[quickcheck]
+fn extend_ref(mut reference_map: BTreeMap<u32, String>, extension: Vec<(u32, String)>) {
+    let mut assoc_list: AssocList<_, _> =
+        reference_map.iter().map(|(key, value)| (*key, value.clone())).collect();
+    assoc_list.extend(extension.iter().map(split_tuple_refs));
+    reference_map.extend(extension);
+    let result_map: BTreeMap<_, _> = assoc_list.into_iter().collect();
+    assert_eq!(result_map, reference_map);
 }
 
-#[test]
-fn index() {
-    todo!()
+// required by quickcheck-macro
+#[allow(clippy::needless_pass_by_value)]
+// point of the test ;)
+#[allow(clippy::indexing_slicing)]
+#[quickcheck]
+fn index(reference_map: BTreeMap<String, f64>) {
+    let assoc_list: AssocList<_, _> = reference_map.iter().collect();
+    for (key, value) in &reference_map {
+        if value.is_nan() {
+            assert!(assoc_list[key].is_nan());
+        } else {
+            // exact comparison desired
+            #[allow(clippy::float_cmp)]
+            {
+                assert_eq!(assoc_list[key], value, "{key}: {value}");
+            }
+        }
+    }
 }
 
-#[test]
-fn index_mut() {
-    todo!()
+// required by quickcheck-macro
+#[allow(clippy::needless_pass_by_value)]
+// point of the test ;)
+#[allow(clippy::indexing_slicing)]
+#[quickcheck]
+fn index_mut(reference_map: BTreeMap<String, f32>) {
+    const NEW_VALUE: f32 = 72.334;
+    let mut assoc_list: AssocList<_, _> = reference_map.iter().collect();
+    for (key, value) in &reference_map {
+        let mut_ref = assoc_list.index_mut(key);
+        if value.is_nan() {
+            assert!(mut_ref.is_nan());
+        } else {
+            // exact comparison desired
+            #[allow(clippy::float_cmp)]
+            {
+                assert_eq!(*mut_ref, value, "{key}: {value}");
+            }
+        }
+        *mut_ref = &NEW_VALUE;
+    }
+    assert!(assoc_list.into_values().all(|value| {
+        // exact comparison desired
+        #[allow(clippy::float_cmp_const)]
+        {
+            *value == NEW_VALUE
+        }
+    }));
 }
