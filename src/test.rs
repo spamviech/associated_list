@@ -269,17 +269,59 @@ fn get_mut(reference_map: BTreeMap<String, f32>) {
 
 #[test]
 fn insert() {
-    todo!()
+    const OCCUPIED: &str = "occupied";
+    const VALUE: &str = "value";
+    const ANOTHER: &str = "another";
+    const ANOTHER_VALUE: &str = "another value";
+    const NEW: &str = "new";
+    const NEW_VALUE: &str = "new value";
+    let mut assoc_list = assoc_list!((OCCUPIED, VALUE), (ANOTHER, ANOTHER_VALUE));
+
+    let value = assoc_list.insert(OCCUPIED, NEW_VALUE);
+    let new_value = assoc_list.insert(NEW, NEW_VALUE);
+
+    assert_eq!(value, Some(VALUE));
+    assert_eq!(new_value, None);
+    assert!(assoc_list.vec.contains(&(OCCUPIED, NEW_VALUE)), "new value for existing key");
+    assert!(!assoc_list.vec.contains(&(OCCUPIED, VALUE)), "old value got replaced");
+    assert!(assoc_list.vec.contains(&(ANOTHER, ANOTHER_VALUE)), "other value untouched");
+    assert!(assoc_list.vec.contains(&(NEW, NEW_VALUE)), "new value added");
 }
 
 #[test]
 fn remove() {
-    todo!()
+    const OCCUPIED: &str = "occupied";
+    const VALUE: &str = "value";
+    const ANOTHER: &str = "another";
+    const ANOTHER_VALUE: &str = "another value";
+    const VACANT: &str = "vacant";
+    let mut assoc_list = assoc_list!((OCCUPIED, VALUE), (ANOTHER, ANOTHER_VALUE));
+
+    let value = assoc_list.remove(OCCUPIED);
+    let vacant_value = assoc_list.remove(VACANT);
+
+    assert_eq!(value, Some(VALUE));
+    assert_eq!(vacant_value, None);
+    assert!(!assoc_list.vec.contains(&(OCCUPIED, VALUE)), "value got removed");
+    assert!(assoc_list.vec.contains(&(ANOTHER, ANOTHER_VALUE)), "other value untouched");
 }
 
 #[test]
 fn remove_entry() {
-    todo!()
+    const OCCUPIED: &str = "occupied";
+    const VALUE: &str = "value";
+    const ANOTHER: &str = "another";
+    const ANOTHER_VALUE: &str = "another value";
+    const VACANT: &str = "vacant";
+    let mut assoc_list = assoc_list!((OCCUPIED, VALUE), (ANOTHER, ANOTHER_VALUE));
+
+    let value = assoc_list.remove_entry(OCCUPIED);
+    let vacant_value = assoc_list.remove_entry(VACANT);
+
+    assert_eq!(value, Some((OCCUPIED, VALUE)));
+    assert_eq!(vacant_value, None);
+    assert!(!assoc_list.vec.contains(&(OCCUPIED, VALUE)), "value got removed");
+    assert!(assoc_list.vec.contains(&(ANOTHER, ANOTHER_VALUE)), "other value untouched");
 }
 
 #[test]
