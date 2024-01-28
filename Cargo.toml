@@ -1,13 +1,13 @@
 [package]
 name = "associated_list"
-version = "0.2.0"
+version = "0.2.1"
 description = "An associated list, for cases when the key implements neither Hash nor Ord."
 categories = ["collections"]
 keywords = ["collections", "assoc_list", "assoc", "map"]
 authors = ["spamviech <spamviech@web.de>"]
 edition = "2021"
 license = "MIT"
-publish = true
+publish = false
 rust-version = "1.75"
 repository = "https://github.com/spamviech/associated_list"
 
