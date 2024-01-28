@@ -160,7 +160,7 @@ impl<'a, K, V, A: Allocator> VacantEntry<'a, K, V, A> {
     ///
     /// ## Panics
     ///
-    /// Programming error: if [`Vec::last_mut`] returns [`None`] directly after a [`Vec::push`].
+    /// Programming error: if [`slice::last_mut`] returns [`None`] directly after a [`Vec::push`].
     #[must_use]
     #[inline]
     pub fn insert(self, value: V) -> &'a mut V {

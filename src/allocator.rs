@@ -10,8 +10,7 @@ use alloc::alloc::Global;
 /// Helper-trait to reduce the amount of required cfg-pragmas.
 ///
 /// When the feature `allocator_api` is active, resolves to an alias-trait for [`core::alloc::Allocator`].
-/// Otherwise, it is just an empty trait, only implemented for
-/// [`DummyAllocator`](sealed::DummyAllocator).
+/// Otherwise, it is just an empty trait, only implemented for [`DummyAllocator`](sealed::DummyAllocator).
 pub trait Allocator: ActualAllocator {}
 #[cfg(feature = "allocator_api")]
 impl<T: ActualAllocator> Allocator for T {}
@@ -19,8 +18,7 @@ impl<T: ActualAllocator> Allocator for T {}
 /// Helper-trait to reduce the amount of required cfg-pragmas.
 ///
 /// When the feature `allocator_api` is active, resolves to an alias-trait for [`core::alloc::Allocator`].
-/// Otherwise, it is just an empty trait, only implemented for
-/// [`DummyAllocator`](sealed::DummyAllocator).
+/// Otherwise, it is just an empty trait, only implemented for [`DummyAllocator`](sealed::DummyAllocator).
 pub trait Allocator: sealed::Sealed {}
 
 #[cfg(not(feature = "allocator_api"))]
