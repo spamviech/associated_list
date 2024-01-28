@@ -416,7 +416,18 @@ fn shrink_to_fit() {
 
 #[test]
 fn partial_eq() {
-    todo!()
+    let assoc_list = assoc_list!((1, "1"), (2, "2"), (3, "3"));
+    let assoc_list_reverse = assoc_list!((3, "3"), (2, "2"), (1, "1"));
+    let assoc_list_reverse_different = assoc_list!((3, "3"), (2, "something"), (1, "1"));
+    assert_eq!(assoc_list, assoc_list);
+    assert_eq!(assoc_list, assoc_list_reverse);
+    assert_ne!(assoc_list, assoc_list_reverse_different);
+    assert_ne!(assoc_list, AssocList::new());
+    // inherit properties form key/value PartialEq-implementations: NaN is not equal to itself
+    let nan_key_list = assoc_list!((f32::NAN, ()));
+    let nan_value_list = assoc_list!(("key", f32::NAN), ("other key", f32::INFINITY));
+    assert_ne!(nan_key_list, nan_key_list);
+    assert_ne!(nan_value_list, nan_value_list);
 }
 
 #[test]

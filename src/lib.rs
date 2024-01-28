@@ -5,6 +5,7 @@
 
 use core::{
     borrow::Borrow,
+    fmt::{self, Debug, Formatter},
     marker::PhantomData,
     mem,
     ops::{Index, IndexMut},
@@ -43,7 +44,7 @@ use self::{
 /// to only use key types that are also (at least nearly) [`Ord`].
 /// For example, elements associated with a [`f32::NAN`]
 /// cannot be found or deleted ([`PartialEq::eq`] will alway return `false`).
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AssocList<K, V, A: Allocator = DefaultAllocator> {
     #[cfg(feature = "allocator_api")]
     /// The vector of the [`AssocList`].
@@ -420,6 +421,17 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
     #[inline]
     pub fn shrink_to_fit(&mut self) {
         self.vec.shrink_to_fit();
+    }
+}
+
+impl<K: Debug, V: Debug, A: Allocator> Debug for AssocList<K, V, A> {
+    #[inline]
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("AssocList")
+            .field("vec", &self.vec)
+            .field("phantom", &self.phantom)
+            .finish()
     }
 }
 
