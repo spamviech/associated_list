@@ -326,32 +326,92 @@ fn remove_entry() {
 
 #[test]
 fn reserve() {
-    todo!()
+    const ADDITIONAL: usize = 64;
+    let mut assoc_list = assoc_list!((0, "elem"));
+    assoc_list.reserve(ADDITIONAL);
+    let cap_before_insert = assoc_list.capacity();
+    for i in 0..ADDITIONAL {
+        let _ = assoc_list.insert(i + 1, "filler");
+    }
+    assert_eq!(assoc_list.capacity(), cap_before_insert);
 }
 
 #[test]
 fn reserve_exact() {
-    todo!()
+    const ADDITIONAL: usize = 51;
+    let mut assoc_list = assoc_list!((-0., Some(7)), (-1., Some(-4)));
+    assoc_list.reserve_exact(ADDITIONAL);
+    let cap_before_insert = assoc_list.capacity();
+    for i in 0..ADDITIONAL {
+        // not a problem for 0..51
+        #[allow(clippy::cast_precision_loss, clippy::as_conversions)]
+        let _ = assoc_list.insert(i as f64 + 0.3, isize::try_from(i).ok());
+    }
+    assert_eq!(assoc_list.capacity(), cap_before_insert);
 }
 
 #[test]
 fn try_reserve() {
-    todo!()
+    const ADDITIONAL: usize = 126;
+    let mut assoc_list = assoc_list!((0, 3));
+    let result = assoc_list.try_reserve(ADDITIONAL);
+    #[allow(clippy::panic)]
+    if let Err(err) = result {
+        panic!("{err}");
+    }
+    let cap_before_insert = assoc_list.capacity();
+    for i in 0..ADDITIONAL {
+        let _ = assoc_list.insert(i + 1, i);
+    }
+    assert_eq!(assoc_list.capacity(), cap_before_insert);
 }
 
 #[test]
 fn try_reserve_exact() {
-    todo!()
+    const ADDITIONAL: usize = 283;
+    let mut assoc_list = assoc_list!((0, 25));
+    let result = assoc_list.try_reserve_exact(ADDITIONAL);
+    #[allow(clippy::panic)]
+    if let Err(err) = result {
+        panic!("{err}");
+    }
+    let cap_before_insert = assoc_list.capacity();
+    for i in 0..ADDITIONAL {
+        let _ = assoc_list.insert(i + 1, i);
+    }
+    assert_eq!(assoc_list.capacity(), cap_before_insert);
 }
 
 #[test]
 fn shrink_to() {
-    todo!()
+    const INITIAL_CAPACITY: usize = 253;
+    const MIN_CAPACITY: usize = 1;
+    let mut assoc_list = AssocList::with_capacity(INITIAL_CAPACITY);
+    let _ = assoc_list.insert("abc", 234);
+    let _ = assoc_list.insert("8s", 823);
+    let initial_capacity = assoc_list.capacity();
+    // if the argument is higher than the current capacity, this is a no-op
+    let higher_capacity = initial_capacity + 235;
+    assoc_list.shrink_to(higher_capacity);
+    assert_eq!(assoc_list.capacity(), initial_capacity);
+    // the capacity will not decrease below the current size or the supplied argument
+    assoc_list.shrink_to(MIN_CAPACITY);
+    assert!(assoc_list.capacity() <= initial_capacity);
+    assert!(assoc_list.capacity() >= assoc_list.len());
+    assert!(assoc_list.capacity() >= MIN_CAPACITY);
 }
 
 #[test]
 fn shrink_to_fit() {
-    todo!()
+    const INITIAL_CAPACITY: usize = 253;
+    let mut assoc_list = AssocList::with_capacity(INITIAL_CAPACITY);
+    let _ = assoc_list.insert("abc", 234);
+    let _ = assoc_list.insert("8s", 823);
+    let initial_capacity = assoc_list.capacity();
+    // the capacity will not decrease below the current size
+    assoc_list.shrink_to_fit();
+    assert!(assoc_list.capacity() <= initial_capacity);
+    assert!(assoc_list.capacity() >= assoc_list.len());
 }
 
 #[test]
