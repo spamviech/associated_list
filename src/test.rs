@@ -1,6 +1,10 @@
 //! Unit tests for an [`AssocList`].
 
-use alloc::{collections::BTreeMap, string::String, vec::Vec};
+use alloc::{
+    collections::BTreeMap,
+    string::{String, ToString},
+    vec::Vec,
+};
 
 use quickcheck_macros::quickcheck;
 
@@ -164,7 +168,31 @@ fn clear(input: Vec<(f32, i8)>) {
 
 #[test]
 fn contains_key() {
-    todo!()
+    let keys = [
+        f32::NEG_INFINITY,
+        f32::MIN,
+        -3.5,
+        f32::MIN_POSITIVE,
+        -0.,
+        f32::EPSILON,
+        f32::MIN_POSITIVE,
+        7.,
+        f32::MAX,
+        f32::INFINITY,
+        f32::NAN,
+    ];
+    let unknown_keys = [-10., -2., 1.5, 19.34];
+    let assoc_list: AssocList<_, _> = keys.into_iter().map(|key| (key, key.to_string())).collect();
+    for key in keys {
+        if key.is_nan() {
+            assert!(!assoc_list.contains_key(&key), "NaN-values are not equal to anything: {key}");
+        } else {
+            assert!(assoc_list.contains_key(&key), "Known Key not contained: {key}");
+        }
+    }
+    for key in unknown_keys {
+        assert!(!assoc_list.contains_key(&key), "Unknown key contained: {key}");
+    }
 }
 
 #[test]
