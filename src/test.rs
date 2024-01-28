@@ -195,19 +195,67 @@ fn contains_key() {
     }
 }
 
-#[test]
-fn get() {
-    todo!()
+// required by quickcheck-macro
+#[allow(clippy::needless_pass_by_value)]
+#[quickcheck]
+fn get(reference_map: BTreeMap<String, f64>) {
+    let assoc_list: AssocList<_, _> = reference_map.iter().collect();
+    for (key, value) in &reference_map {
+        assert_eq!(assoc_list.get(&key), Some(&value), "{key}: {value}");
+    }
+    let mut unknown_key = String::new();
+    while assoc_list.contains_key(&unknown_key) {
+        unknown_key.push('🕴');
+    }
+    assert_eq!(assoc_list.get(&unknown_key), None);
 }
 
-#[test]
-fn get_key_value() {
-    todo!()
+// required by quickcheck-macro
+#[allow(clippy::needless_pass_by_value)]
+#[quickcheck]
+fn get_key_value(reference_map: BTreeMap<String, f64>) {
+    let assoc_list: AssocList<_, _> = reference_map.iter().collect();
+    for (key, value) in &reference_map {
+        assert_eq!(assoc_list.get_key_value(&key), Some((&key, &value)), "{key}: {value}");
+    }
+    let mut unknown_key = String::new();
+    while assoc_list.contains_key(&unknown_key) {
+        unknown_key.push('🕴');
+    }
+    assert_eq!(assoc_list.get_key_value(&unknown_key), None);
 }
 
-#[test]
-fn get_mut() {
-    todo!()
+// required by quickcheck-macro
+#[allow(clippy::needless_pass_by_value)]
+#[quickcheck]
+fn get_mut(reference_map: BTreeMap<String, f32>) {
+    const NEW_VALUE: f32 = 0.762;
+    let mut assoc_list: AssocList<_, _> = reference_map.iter().collect();
+    for (key, value) in &reference_map {
+        // error-case for let-else
+        #[allow(clippy::panic)]
+        let Some(mut_value) = assoc_list.get_mut(&key) else {
+            panic!("Missing key {key}: {value}");
+        };
+        // exact comparison is desired
+        #[allow(clippy::float_cmp)]
+        {
+            assert_eq!(*mut_value, value, "{key}: {value}");
+        }
+        *mut_value = &NEW_VALUE;
+    }
+    for (key, value) in &assoc_list {
+        // exact comparison is desired
+        #[allow(clippy::float_cmp)]
+        {
+            assert_eq!(value, &&NEW_VALUE, "{key}: {value}");
+        }
+    }
+    let mut unknown_key = String::new();
+    while assoc_list.contains_key(&unknown_key) {
+        unknown_key.push('🕴');
+    }
+    assert_eq!(assoc_list.get_mut(&unknown_key), None);
 }
 
 #[test]
