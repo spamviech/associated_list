@@ -201,6 +201,10 @@ fn contains_key() {
 fn get(reference_map: BTreeMap<String, f64>) {
     let assoc_list: AssocList<_, _> = reference_map.iter().collect();
     for (key, value) in &reference_map {
+        if value.is_nan() {
+            // NaN-values are not equal to itself!
+            continue;
+        }
         assert_eq!(assoc_list.get(&key), Some(&value), "{key}: {value}");
     }
     let mut unknown_key = String::new();
@@ -216,6 +220,10 @@ fn get(reference_map: BTreeMap<String, f64>) {
 fn get_key_value(reference_map: BTreeMap<String, f64>) {
     let assoc_list: AssocList<_, _> = reference_map.iter().collect();
     for (key, value) in &reference_map {
+        if value.is_nan() {
+            // NaN-values are not equal to itself!
+            continue;
+        }
         assert_eq!(assoc_list.get_key_value(&key), Some((&key, &value)), "{key}: {value}");
     }
     let mut unknown_key = String::new();
@@ -239,18 +247,19 @@ fn get_mut(reference_map: BTreeMap<String, f32>) {
         };
         // exact comparison is desired
         #[allow(clippy::float_cmp)]
-        {
+        if !value.is_nan() {
+            // NaN-values are not equal to itself!
             assert_eq!(*mut_value, value, "{key}: {value}");
         }
         *mut_value = &NEW_VALUE;
     }
-    for (key, value) in &assoc_list {
-        // exact comparison is desired
-        #[allow(clippy::float_cmp)]
+    assert!(assoc_list.values().all(|&&value| {
+        // exact comparison desired
+        #[allow(clippy::float_cmp_const)]
         {
-            assert_eq!(value, &&NEW_VALUE, "{key}: {value}");
+            value == NEW_VALUE
         }
-    }
+    }));
     let mut unknown_key = String::new();
     while assoc_list.contains_key(&unknown_key) {
         unknown_key.push('🕴');
