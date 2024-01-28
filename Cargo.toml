@@ -1,7 +1,9 @@
 [package]
 name = "associated_list"
-version = "0.1.0"
+version = "0.2.0"
 description = "An associated list, for cases when the key implements neither Hash nor Ord."
+categories = ["collections"]
+keywords = ["collections", "assoc_list", "assoc", "map"]
 authors = ["spamviech <spamviech@web.de>"]
 edition = "2021"
 license = "MIT"
@@ -14,11 +16,19 @@ repository = "https://github.com/spamviech/associated_list"
 [features]
 default = []
 # collection of all nightly-only features
-nightly = ["allocator_api"]
+nightly = ["allocator_api", "doc_auto_cfg"]
 # add an "allocator"-parameter to the AssocList. Requires the "allocator_api" feature/a nightly toolchain.
 allocator_api = []
+doc_auto_cfg = []
 
 [dependencies]
+
+[dev-dependencies]
+quickcheck_macros = "1.0.0"
+
+[dev-dependencies.quickcheck]
+version = "1.0.3"
+default-features = false
 
 [lints.rust]
 # Activate all warnings/lints except: box_pointers, non_ascii_idents, unstable_features
@@ -173,3 +183,6 @@ unwrap_used = "warn"
 use_debug = "warn"
 verbose_file_reads = "warn"
 wildcard_enum_match_arm = "warn"
+
+[package.metadata.docs.rs]
+all-features = true
