@@ -7,17 +7,17 @@ use core::{
 
 use alloc::vec::{self, IntoIter};
 
-use crate::allocator::Allocator;
+use crate::allocator::{Allocator, DefaultAllocator};
 
 /// Draining Iterator for an [`AssocList`](crate::AssocList).
 /// It is created by the [`drain`](crate::AssocList::drain)-method.
 #[derive(Debug)]
 #[must_use]
-pub struct Drain<'a, K, V, A: Allocator> {
-    #[cfg(feature = "allocator_api")]
+pub struct Drain<'a, K, V, A: Allocator = DefaultAllocator> {
+    #[cfg(feature = "allocator_ext")]
     /// The Iterator from a [`Vec`](alloc::vec::Vec) the implementation is based on.
     pub(crate) iter: vec::Drain<'a, (K, V), A>,
-    #[cfg(not(feature = "allocator_api"))]
+    #[cfg(not(feature = "allocator_ext"))]
     /// The Iterator from a [`Vec`](alloc::vec::Vec) the implementation is based on.
     pub(crate) iter: vec::Drain<'a, (K, V)>,
     /// PhantomData
@@ -69,11 +69,11 @@ impl<'a, K, V> Iterator for Keys<'a, K, V> {
 /// It is created by the [`into_keys`](crate::AssocList::into_keys)-method.
 #[derive(Debug)]
 #[must_use]
-pub struct IntoKeys<K, V, A: Allocator> {
-    #[cfg(feature = "allocator_api")]
+pub struct IntoKeys<K, V, A: Allocator = DefaultAllocator> {
+    #[cfg(feature = "allocator_ext")]
     /// The Iterator from a [`Vec`](alloc::vec::Vec) the implementation is based on.
     pub(crate) iter: IntoIter<(K, V), A>,
-    #[cfg(not(feature = "allocator_api"))]
+    #[cfg(not(feature = "allocator_ext"))]
     /// The Iterator from a [`Vec`](alloc::vec::Vec) the implementation is based on.
     pub(crate) iter: IntoIter<(K, V)>,
     /// PhantomData
@@ -123,11 +123,11 @@ impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
 /// It is created by the [`into_values`](crate::AssocList::into_values)-method.
 #[derive(Debug)]
 #[must_use]
-pub struct IntoValues<K, V, A: Allocator> {
-    #[cfg(feature = "allocator_api")]
+pub struct IntoValues<K, V, A: Allocator = DefaultAllocator> {
+    #[cfg(feature = "allocator_ext")]
     /// The Iterator from a [`Vec`](alloc::vec::Vec) the implementation is based on.
     pub(crate) iter: IntoIter<(K, V), A>,
-    #[cfg(not(feature = "allocator_api"))]
+    #[cfg(not(feature = "allocator_ext"))]
     /// The Iterator from a [`Vec`](alloc::vec::Vec) the implementation is based on.
     pub(crate) iter: IntoIter<(K, V)>,
     /// PhantomData

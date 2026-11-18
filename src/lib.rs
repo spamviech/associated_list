@@ -1,7 +1,6 @@
 #![doc = include_str!("../README.md")]
 #![no_std]
-#![cfg_attr(feature = "doc_auto_cfg", feature(doc_auto_cfg))]
-#![cfg_attr(feature = "allocator_api", feature(allocator_api))]
+#![cfg_attr(feature = "allocator_ext", feature(allocator_ext))]
 
 use core::{
     borrow::Borrow,
@@ -13,6 +12,8 @@ use core::{
 };
 
 extern crate alloc;
+#[cfg(feature = "allocator_ext")]
+use alloc::alloc::AllocatorNightly;
 use alloc::{
     collections::TryReserveError,
     vec::{IntoIter, Vec},
@@ -110,7 +111,16 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
     /// Create a new [`AssocList`] with the provided allocator.
     #[must_use]
     #[inline]
+    #[cfg(feature = "allocator_ext")]
     pub const fn new_in(alloc: A) -> Self {
+        AssocList { vec: Vec::new_in(alloc), phantom: PhantomData }
+    }
+
+    /// Create a new [`AssocList`] with the provided allocator.
+    #[must_use]
+    #[inline]
+    #[cfg(not(feature = "allocator_ext"))]
+    pub fn new_in(alloc: A) -> Self {
         AssocList { vec: Vec::new_in(alloc), phantom: PhantomData }
     }
 
@@ -129,12 +139,6 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
         Keys(self.vec.iter())
     }
 
-    /// Return a consuming iterator for all keys in the [`AssocList`].
-    #[inline]
-    pub fn into_keys(self) -> IntoKeys<K, V, A> {
-        IntoKeys { iter: self.vec.into_iter(), phantom: self.phantom }
-    }
-
     /// Return an iterator for all values in the [`AssocList`].
     #[inline]
     pub fn values(&self) -> Values<'_, K, V> {
@@ -147,12 +151,6 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
         ValuesMut(self.vec.iter_mut())
     }
 
-    /// Return a consuming iterator for all values in the [`AssocList`].
-    #[inline]
-    pub fn into_values(self) -> IntoValues<K, V, A> {
-        IntoValues { iter: self.vec.into_iter(), phantom: self.phantom }
-    }
-
     /// Return an iterator for all key-value pairs in the [`AssocList`].
     #[inline]
     pub fn iter(&self) -> Iter<'_, (K, V)> {
@@ -163,17 +161,6 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
     #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         IterMut(self.vec.iter_mut())
-    }
-
-    /// Removes all key-value pairs from the [`AssocList`] in bulk, returning all removed elements as an iterator.
-    /// If the iterator is dropped before being fully consumed, it drops the remaining removed elements.
-    ///
-    /// ## Leaking
-    ///
-    /// See [`Vec::drain`].
-    #[inline]
-    pub fn drain(&mut self) -> Drain<'_, K, V, A> {
-        Drain { iter: self.vec.drain(..), phantom: self.phantom }
     }
 
     /// Return the number of key-value pairs currently contained in the [`AssocList`].
@@ -424,6 +411,61 @@ impl<K, V, A: Allocator> AssocList<K, V, A> {
     }
 }
 
+#[cfg(feature = "allocator_ext")]
+impl<K, V, A: Allocator> AssocList<K, V, A> {
+    /// Return a consuming iterator for all keys in the [`AssocList`].
+    #[inline]
+    pub fn into_keys(self) -> IntoKeys<K, V, A> {
+        IntoKeys { iter: self.vec.into_iter(), phantom: self.phantom }
+    }
+
+    /// Return a consuming iterator for all values in the [`AssocList`].
+    #[inline]
+    pub fn into_values(self) -> IntoValues<K, V, A> {
+        IntoValues { iter: self.vec.into_iter(), phantom: self.phantom }
+    }
+
+    /// Removes all key-value pairs from the [`AssocList`] in bulk, returning all removed elements as an iterator.
+    /// If the iterator is dropped before being fully consumed, it drops the remaining removed elements.
+    ///
+    /// ## Leaking
+    ///
+    /// See [`Vec::drain`].
+    #[inline]
+    pub fn drain(&mut self) -> Drain<'_, K, V, A>
+    where
+        A: AllocatorNightly,
+    {
+        Drain { iter: self.vec.drain(..), phantom: self.phantom }
+    }
+}
+
+#[cfg(not(feature = "allocator_ext"))]
+impl<K, V> AssocList<K, V, DefaultAllocator> {
+    /// Return a consuming iterator for all keys in the [`AssocList`].
+    #[inline]
+    pub fn into_keys(self) -> IntoKeys<K, V, DefaultAllocator> {
+        IntoKeys { iter: self.vec.into_iter(), phantom: self.phantom }
+    }
+
+    /// Return a consuming iterator for all values in the [`AssocList`].
+    #[inline]
+    pub fn into_values(self) -> IntoValues<K, V, DefaultAllocator> {
+        IntoValues { iter: self.vec.into_iter(), phantom: self.phantom }
+    }
+
+    /// Removes all key-value pairs from the [`AssocList`] in bulk, returning all removed elements as an iterator.
+    /// If the iterator is dropped before being fully consumed, it drops the remaining removed elements.
+    ///
+    /// ## Leaking
+    ///
+    /// See [`Vec::drain`].
+    #[inline]
+    pub fn drain(&mut self) -> Drain<'_, K, V, DefaultAllocator> {
+        Drain { iter: self.vec.drain(..), phantom: self.phantom }
+    }
+}
+
 impl<K: Debug, V: Debug, A: Allocator> Debug for AssocList<K, V, A> {
     #[inline]
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
@@ -517,12 +559,22 @@ impl<Q: PartialEq, K: Borrow<Q>, V, A: Allocator> IndexMut<Q> for AssocList<K, V
     }
 }
 
+#[cfg(feature = "allocator_ext")]
 impl<K, V, A: Allocator> IntoIterator for AssocList<K, V, A> {
     type Item = (K, V);
 
-    #[cfg(feature = "allocator_api")]
     type IntoIter = IntoIter<(K, V), A>;
-    #[cfg(not(feature = "allocator_api"))]
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        self.vec.into_iter()
+    }
+}
+
+#[cfg(not(feature = "allocator_ext"))]
+impl<K, V> IntoIterator for AssocList<K, V> {
+    type Item = (K, V);
+
     type IntoIter = IntoIter<(K, V)>;
 
     #[inline]

@@ -2,6 +2,12 @@
 
 ## Unreleased changes
 
+- Introduce new "allocator_ext"-feature after stabilization of "allocator_api".
+- Remove "doc_auto_cfg"-feature. It is available in stable rust and always active.
+- Increase msrv to 1.100.
+
+## v0.2.0
+
 - Seal the `Allocator`-trait if the feature "allocator_api" is not enabled.
     Additionally, change the `DefaultAllocator` to a new unnameable type.
 - Add `assoc_list!`-macro to create an `AssocList` with elements.
